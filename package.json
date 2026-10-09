@@ -1,0 +1,20 @@
+{
+  "name": "vorix",
+  "productName": "VORIX",
+  "version": "1.0.0",
+  "description": "Generated application",
+  "author": "ADRIAN.D <AD CITY>",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win portable nsis"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
+  }
+}

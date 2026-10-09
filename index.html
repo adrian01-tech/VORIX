@@ -1,0 +1,4931 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>AD ENGINE — Universal Conversion & Workflow Engine</title>
+
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+<style>
+:root{
+  --bg:#05070a;
+  --panel:#0b1017;
+  --panel2:#101822;
+  --panel3:#141f2b;
+  --text:#e9f5f0;
+  --muted:#8da39a;
+  --accent:#00ff9a;
+  --accent2:#28d7ff;
+  --danger:#ff405c;
+  --warn:#ffd84d;
+  --radius:18px;
+  --glow:1;
+  --density:1;
+  --sidebar:260px;
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden}
+body{
+  background:
+    radial-gradient(circle at 15% 10%,rgba(0,255,154,.07),transparent 28%),
+    radial-gradient(circle at 90% 80%,rgba(40,215,255,.06),transparent 30%),
+    var(--bg);
+  color:var(--text);
+  font-family:Inter,Segoe UI,Arial,sans-serif;
+}
+
+body.scanlines:after{
+  content:"";
+  pointer-events:none;
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  opacity:.045;
+  background:repeating-linear-gradient(
+    0deg,
+    transparent 0px,
+    transparent 2px,
+    #fff 3px
+  );
+}
+
+button,input,textarea,select{font:inherit}
+button{cursor:pointer}
+
+.app{
+  display:flex;
+  width:100%;
+  height:100%;
+}
+
+.sidebar{
+  width:var(--sidebar);
+  flex:none;
+  background:rgba(7,11,16,.94);
+  border-right:1px solid rgba(0,255,154,.12);
+  display:flex;
+  flex-direction:column;
+  transition:.25s;
+  z-index:20;
+}
+
+.sidebar.collapsed{
+  width:76px;
+}
+
+.brand{
+  height:82px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:16px;
+  border-bottom:1px solid rgba(255,255,255,.05);
+}
+
+.logo{
+  width:45px;
+  height:45px;
+  border:1px solid var(--accent);
+  border-radius:14px;
+  display:grid;
+  place-items:center;
+  overflow:hidden;
+  background:#02070b;
+  box-shadow:0 0 calc(18px * var(--glow)) rgba(0,255,154,.18);
+}
+
+.logo img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
+
+.brandText strong{
+  display:block;
+  letter-spacing:2px;
+}
+.brandText span{
+  color:var(--muted);
+  font-size:11px;
+}
+
+.sidebar.collapsed .brandText,
+.sidebar.collapsed .navText,
+.sidebar.collapsed .sideFooterText{
+  display:none;
+}
+
+.nav{
+  flex:1;
+  overflow:auto;
+  padding:12px;
+}
+
+.navGroup{
+  margin:14px 8px 6px;
+  color:#557067;
+  font-size:10px;
+  letter-spacing:2px;
+}
+
+.navBtn{
+  width:100%;
+  border:1px solid transparent;
+  background:transparent;
+  color:var(--muted);
+  padding:11px 12px;
+  border-radius:13px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  text-align:left;
+  margin-bottom:4px;
+  transition:.2s;
+}
+
+.navBtn:hover{
+  background:rgba(0,255,154,.06);
+  color:var(--text);
+}
+
+.navBtn.active{
+  background:linear-gradient(90deg,rgba(0,255,154,.13),rgba(40,215,255,.05));
+  color:var(--accent);
+  border-color:rgba(0,255,154,.2);
+}
+
+.navIcon{
+  width:26px;
+  text-align:center;
+  font-size:17px;
+  flex:none;
+}
+
+.sideFooter{
+  padding:12px;
+  border-top:1px solid rgba(255,255,255,.05);
+}
+
+.main{
+  flex:1;
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+}
+
+.topbar{
+  height:72px;
+  flex:none;
+  border-bottom:1px solid rgba(255,255,255,.05);
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:12px 18px;
+  background:rgba(5,8,12,.76);
+  backdrop-filter:blur(18px);
+}
+
+.iconBtn{
+  width:42px;
+  height:42px;
+  border:1px solid rgba(255,255,255,.08);
+  background:var(--panel);
+  color:var(--text);
+  border-radius:12px;
+}
+
+.search{
+  flex:1;
+  max-width:700px;
+  position:relative;
+}
+
+.search input{
+  width:100%;
+  height:44px;
+  background:var(--panel);
+  border:1px solid rgba(255,255,255,.08);
+  color:var(--text);
+  border-radius:13px;
+  padding:0 44px 0 15px;
+  outline:none;
+}
+
+.search input:focus{
+  border-color:rgba(0,255,154,.45);
+  box-shadow:0 0 20px rgba(0,255,154,.07);
+}
+
+.status{
+  margin-left:auto;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  color:var(--muted);
+  font-size:12px;
+}
+
+.dot{
+  width:8px;
+  height:8px;
+  background:var(--accent);
+  border-radius:50%;
+  box-shadow:0 0 12px var(--accent);
+}
+
+.content{
+  flex:1;
+  overflow:auto;
+  padding:22px;
+}
+
+.page{display:none;animation:fade .2s ease}
+.page.active{display:block}
+
+@keyframes fade{
+  from{opacity:0;transform:translateY(5px)}
+  to{opacity:1;transform:none}
+}
+
+.pageHead{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:15px;
+  margin-bottom:20px;
+}
+
+.pageHead h1{
+  margin:0 0 5px;
+  font-size:27px;
+  letter-spacing:-.5px;
+}
+
+.pageHead p{
+  margin:0;
+  color:var(--muted);
+  font-size:13px;
+}
+
+.actions{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.btn{
+  border:1px solid rgba(255,255,255,.09);
+  background:var(--panel2);
+  color:var(--text);
+  padding:10px 14px;
+  border-radius:12px;
+  transition:.2s;
+}
+
+.btn:hover{
+  border-color:rgba(0,255,154,.35);
+  transform:translateY(-1px);
+}
+
+.btn.primary{
+  background:rgba(0,255,154,.1);
+  color:var(--accent);
+  border-color:rgba(0,255,154,.35);
+}
+
+.btn.blue{
+  background:rgba(40,215,255,.08);
+  color:var(--accent2);
+  border-color:rgba(40,215,255,.3);
+}
+
+.btn.danger{
+  color:var(--danger);
+  border-color:rgba(255,64,92,.3);
+}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(12,1fr);
+  gap:14px;
+}
+
+.card{
+  background:
+    linear-gradient(145deg,rgba(255,255,255,.025),rgba(255,255,255,.008)),
+    var(--panel);
+  border:1px solid rgba(255,255,255,.065);
+  border-radius:var(--radius);
+  padding:17px;
+  box-shadow:0 10px 35px rgba(0,0,0,.16);
+}
+
+.card h3{
+  margin:0 0 8px;
+  font-size:15px;
+}
+
+.card p{
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.55;
+}
+
+.stat{
+  grid-column:span 3;
+  min-height:110px;
+}
+
+.stat .big{
+  font-size:30px;
+  font-weight:800;
+  color:var(--accent);
+  margin-top:10px;
+}
+
+.span3{grid-column:span 3}
+.span4{grid-column:span 4}
+.span6{grid-column:span 6}
+.span8{grid-column:span 8}
+.span9{grid-column:span 9}
+.span12{grid-column:span 12}
+
+label{
+  display:block;
+  color:var(--muted);
+  font-size:11px;
+  margin-bottom:6px;
+}
+
+input[type=text],
+input[type=password],
+input[type=number],
+input[type=color],
+select,
+textarea{
+  width:100%;
+  background:#080d13;
+  border:1px solid rgba(255,255,255,.08);
+  color:var(--text);
+  border-radius:11px;
+  padding:10px 11px;
+  outline:none;
+}
+
+textarea{
+  min-height:130px;
+  resize:vertical;
+}
+
+input:focus,select:focus,textarea:focus{
+  border-color:rgba(0,255,154,.4);
+}
+
+.row{
+  display:flex;
+  gap:9px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+
+.row>*{flex:1}
+
+.fileDrop{
+  border:1px dashed rgba(0,255,154,.3);
+  border-radius:15px;
+  padding:25px;
+  text-align:center;
+  color:var(--muted);
+  background:rgba(0,255,154,.025);
+}
+
+.fileDrop.drag{
+  border-color:var(--accent);
+  background:rgba(0,255,154,.08);
+}
+
+.fileList{
+  max-height:380px;
+  overflow:auto;
+}
+
+.fileItem{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:10px;
+  border-bottom:1px solid rgba(255,255,255,.04);
+}
+
+.fileItem:last-child{border-bottom:0}
+
+.fileIcon{
+  width:35px;
+  height:35px;
+  border-radius:10px;
+  display:grid;
+  place-items:center;
+  background:var(--panel2);
+}
+
+.fileName{
+  flex:1;
+  min-width:0;
+}
+
+.fileName strong{
+  display:block;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.fileName small{
+  color:var(--muted);
+}
+
+.badge{
+  display:inline-flex;
+  align-items:center;
+  padding:4px 8px;
+  border-radius:999px;
+  font-size:10px;
+  border:1px solid rgba(255,255,255,.08);
+  color:var(--muted);
+}
+
+.badge.green{
+  color:var(--accent);
+  border-color:rgba(0,255,154,.25);
+}
+
+.badge.blue{
+  color:var(--accent2);
+  border-color:rgba(40,215,255,.25);
+}
+
+.badge.red{
+  color:var(--danger);
+}
+
+.progress{
+  height:8px;
+  border-radius:99px;
+  background:#080d13;
+  overflow:hidden;
+}
+
+.progress div{
+  height:100%;
+  width:0;
+  background:linear-gradient(90deg,var(--accent),var(--accent2));
+  transition:.2s;
+}
+
+.log{
+  background:#030507;
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:12px;
+  padding:12px;
+  min-height:110px;
+  max-height:240px;
+  overflow:auto;
+  font-family:Consolas,monospace;
+  font-size:11px;
+  color:#91e6c4;
+  white-space:pre-wrap;
+}
+
+.tabs{
+  display:flex;
+  gap:7px;
+  overflow:auto;
+  padding-bottom:8px;
+  margin-bottom:14px;
+}
+
+.tab{
+  white-space:nowrap;
+  padding:9px 13px;
+  background:var(--panel);
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:10px;
+  color:var(--muted);
+}
+
+.tab.active{
+  color:var(--accent);
+  border-color:rgba(0,255,154,.28);
+}
+
+.toolPanel{display:none}
+.toolPanel.active{display:block}
+
+.preview{
+  width:100%;
+  max-height:500px;
+  object-fit:contain;
+  background:#020304;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.05);
+}
+
+video.preview{min-height:220px}
+
+.workflowLayout{
+  display:grid;
+  grid-template-columns:220px minmax(300px,1fr) 280px;
+  gap:14px;
+  min-height:650px;
+}
+
+.palette,.inspector,.workflowCanvas{
+  background:var(--panel);
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:var(--radius);
+  padding:13px;
+}
+
+.palette{
+  overflow:auto;
+}
+
+.paletteItem{
+  padding:11px;
+  margin-bottom:7px;
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:12px;
+  background:var(--panel2);
+  cursor:grab;
+}
+
+.paletteItem:hover{
+  border-color:rgba(0,255,154,.3);
+  color:var(--accent);
+}
+
+.workflowCanvas{
+  overflow:auto;
+  background:
+    linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px),
+    #070b10;
+  background-size:25px 25px;
+}
+
+.node{
+  position:relative;
+  padding:14px;
+  margin:10px auto;
+  max-width:580px;
+  border:1px solid rgba(0,255,154,.14);
+  border-radius:15px;
+  background:linear-gradient(145deg,#101923,#0b1118);
+  box-shadow:0 8px 25px rgba(0,0,0,.25);
+  cursor:pointer;
+}
+
+.node.selected{
+  border-color:var(--accent);
+  box-shadow:0 0 25px rgba(0,255,154,.1);
+}
+
+.nodeTop{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.nodeIcon{
+  width:36px;
+  height:36px;
+  display:grid;
+  place-items:center;
+  background:#080d13;
+  border-radius:10px;
+}
+
+.nodeTop strong{flex:1}
+
+.nodeDesc{
+  color:var(--muted);
+  font-size:11px;
+  margin-top:8px;
+}
+
+.connector{
+  width:2px;
+  height:17px;
+  background:linear-gradient(var(--accent),var(--accent2));
+  margin:auto;
+  opacity:.5;
+}
+
+.inspector{
+  overflow:auto;
+}
+
+.inspector h3{
+  margin-top:0;
+}
+
+.libraryCard{
+  padding:14px;
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:14px;
+  background:var(--panel2);
+  margin-bottom:9px;
+}
+
+.libraryCard strong{display:block;margin-bottom:4px}
+.libraryCard small{color:var(--muted)}
+
+.managerToolbar{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-bottom:13px;
+}
+
+.table{
+  width:100%;
+  border-collapse:collapse;
+}
+
+.table th,.table td{
+  padding:10px;
+  border-bottom:1px solid rgba(255,255,255,.05);
+  text-align:left;
+  font-size:12px;
+}
+
+.table th{color:var(--muted)}
+
+.empty{
+  padding:40px;
+  text-align:center;
+  color:var(--muted);
+}
+
+.kbd{
+  padding:3px 6px;
+  border-radius:5px;
+  background:#05080b;
+  border:1px solid rgba(255,255,255,.1);
+  font-family:monospace;
+  font-size:10px;
+}
+
+.commandPreview{
+  border:1px solid rgba(0,255,154,.2);
+  border-radius:15px;
+  padding:15px;
+  background:rgba(0,255,154,.025);
+}
+
+.commandArrow{
+  color:var(--accent);
+  font-size:20px;
+  margin:0 7px;
+}
+
+.hero{
+  padding:26px;
+  border-radius:22px;
+  border:1px solid rgba(0,255,154,.14);
+  background:
+    radial-gradient(circle at 90% 10%,rgba(40,215,255,.08),transparent 30%),
+    radial-gradient(circle at 10% 80%,rgba(0,255,154,.08),transparent 35%),
+    var(--panel);
+  margin-bottom:16px;
+}
+
+.hero h1{
+  margin:0;
+  font-size:34px;
+  letter-spacing:-1px;
+}
+
+.hero p{
+  color:var(--muted);
+  max-width:760px;
+  line-height:1.6;
+}
+
+.quick{
+  min-height:130px;
+  cursor:pointer;
+}
+
+.quick:hover{
+  border-color:rgba(0,255,154,.22);
+}
+
+.quick .qicon{
+  font-size:27px;
+}
+
+.toggle{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:12px 0;
+  border-bottom:1px solid rgba(255,255,255,.04);
+}
+
+.switch{
+  width:44px;
+  height:24px;
+  border-radius:20px;
+  background:#1a232d;
+  padding:3px;
+}
+
+.switch i{
+  display:block;
+  width:18px;
+  height:18px;
+  border-radius:50%;
+  background:#68747e;
+  transition:.2s;
+}
+
+.switch.on{background:rgba(0,255,154,.22)}
+.switch.on i{
+  transform:translateX(20px);
+  background:var(--accent);
+}
+
+.toast{
+  position:fixed;
+  right:20px;
+  bottom:20px;
+  z-index:10000;
+  background:#0d151d;
+  border:1px solid rgba(0,255,154,.3);
+  color:var(--text);
+  border-radius:13px;
+  padding:13px 16px;
+  box-shadow:0 10px 40px rgba(0,0,0,.4);
+  transform:translateY(100px);
+  opacity:0;
+  transition:.25s;
+}
+
+.toast.show{
+  transform:none;
+  opacity:1;
+}
+
+.modal{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.72);
+  backdrop-filter:blur(8px);
+  z-index:500;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+}
+
+.modal.show{display:flex}
+
+.modalBox{
+  width:min(760px,100%);
+  max-height:90vh;
+  overflow:auto;
+  background:#0b1118;
+  border:1px solid rgba(0,255,154,.2);
+  border-radius:20px;
+  padding:20px;
+}
+
+@media(max-width:1100px){
+  .workflowLayout{grid-template-columns:180px minmax(260px,1fr)}
+  .inspector{grid-column:1/-1}
+  .stat{grid-column:span 6}
+}
+
+@media(max-width:760px){
+  .sidebar{
+    position:absolute;
+    height:100%;
+    transform:translateX(-100%);
+  }
+  .sidebar.mobileOpen{transform:none}
+  .content{padding:13px}
+  .span3,.span4,.span6,.span8,.span9{grid-column:span 12}
+  .workflowLayout{grid-template-columns:1fr}
+  .palette,.inspector{max-height:none}
+  .pageHead{flex-direction:column}
+}
+</style>
+
+</head>
+
+<body class="scanlines">
+<div class="app">
+
+<aside class="sidebar" id="sidebar">
+  <div class="brand">
+    <div class="logo" aria-label="VORIX">
+  <img src="VORIX-icon.png" alt="VORIX">
+</div>
+    <div class="brandText">
+      <strong>VORIX</strong>
+      <span>UNIVERSAL ENGINE</span>
+    </div>
+  </div>
+
+  <nav class="nav">
+    <div class="navGroup">ENGINE</div>
+
+```
+<button class="navBtn active" data-page="home">
+  <span class="navIcon">⌂</span><span class="navText">Home</span>
+</button>
+
+<button class="navBtn" data-page="format">
+  <span class="navIcon">⇄</span><span class="navText">Format Master</span>
+</button>
+
+<button class="navBtn" data-page="media">
+  <span class="navIcon">▶</span><span class="navText">Media Lab</span>
+</button>
+
+<button class="navBtn" data-page="developer">
+  <span class="navIcon">&lt;/&gt;</span><span class="navText">Developer</span>
+</button>
+
+<button class="navBtn" data-page="document">
+  <span class="navIcon">▤</span><span class="navText">Document Lab</span>
+</button>
+
+<button class="navBtn" data-page="security">
+  <span class="navIcon">⌁</span><span class="navText">Security</span>
+</button>
+
+<div class="navGroup">AUTOMATION</div>
+
+<button class="navBtn" data-page="codec">
+  <span class="navIcon">◈</span><span class="navText">Codec Engine</span>
+</button>
+
+<button class="navBtn" data-page="batch">
+  <span class="navIcon">▦</span><span class="navText">Batch Engine</span>
+</button>
+
+<button class="navBtn" data-page="workflow">
+  <span class="navIcon">⌘</span><span class="navText">Workflow Builder</span>
+</button>
+
+<button class="navBtn" data-page="autodetect">
+  <span class="navIcon">✦</span><span class="navText">Auto-Detect 2.0</span>
+</button>
+
+<button class="navBtn" data-page="automation">
+  <span class="navIcon">⚙</span><span class="navText">Automation</span>
+</button>
+
+<div class="navGroup">FILES</div>
+
+<button class="navBtn" data-page="files">
+  <span class="navIcon">▣</span><span class="navText">File Manager</span>
+</button>
+
+<button class="navBtn" data-page="storage">
+  <span class="navIcon">◫</span><span class="navText">Storage</span>
+</button>
+
+<button class="navBtn" data-page="history">
+  <span class="navIcon">◷</span><span class="navText">History</span>
+</button>
+
+<div class="navGroup">SYSTEM</div>
+
+<button class="navBtn" data-page="settings">
+  <span class="navIcon">⚙</span><span class="navText">Settings</span>
+</button>
+```
+
+  </nav>
+
+  <div class="sideFooter">
+    <span class="badge green">● ENGINE ONLINE</span>
+    <div class="sideFooterText" style="font-size:10px;color:#52645d;margin-top:7px">
+      Local-first • AD ENGINE 15.0
+    </div>
+  </div>
+</aside>
+
+<main class="main">
+
+<header class="topbar">
+  <button class="iconBtn" id="menuBtn">☰</button>
+
+  <div class="search">
+    <input id="globalSearch"
+      placeholder="Search in VORIX or type a command…   Ctrl + K">
+  </div>
+
+  <div class="status">
+    <span class="dot"></span>
+    <span id="engineStatus">READY</span>
+  </div>
+</header>
+
+<section class="content">
+
+<!-- HOME -->
+
+<div class="page active" id="page-home">
+  <div class="hero">
+    <div class="badge green">AD ENGINE 15.0 • UNIVERSAL CORE</div>
+    <h1 style="margin-top:12px">One engine. Almost anything.</h1>
+    <p>
+      Convert, edit, inspect, secure, automate and batch-process files from one
+      futuristic workspace. Type what you want in natural language and let
+      Auto-Detect build the route.
+    </p>
+    <div class="actions">
+      <button class="btn primary" onclick="showPage('autodetect')">✦ Try Auto-Detect</button>
+      <button class="btn blue" onclick="showPage('workflow')">⌘ Build Workflow</button>
+      <button class="btn" onclick="showPage('files')">▣ Open Files</button>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card stat">
+      <span class="badge">FILES</span>
+      <div class="big" id="statFiles">0</div>
+      <small style="color:var(--muted)">Stored locally</small>
+    </div>
+
+```
+<div class="card stat">
+  <span class="badge blue">WORKFLOWS</span>
+  <div class="big" id="statWorkflows">0</div>
+  <small style="color:var(--muted)">Saved pipelines</small>
+</div>
+
+<div class="card stat">
+  <span class="badge">HISTORY</span>
+  <div class="big" id="statHistory">0</div>
+  <small style="color:var(--muted)">Engine operations</small>
+</div>
+
+<div class="card stat">
+  <span class="badge green">STATUS</span>
+  <div class="big">OK</div>
+  <small style="color:var(--muted)">Core operational</small>
+</div>
+
+<div class="card quick span3" onclick="showPage('autodetect')">
+  <div class="qicon">✦</div>
+  <h3>Universal Auto-Detect</h3>
+  <p>“Convert these MP4s to MP3 and download them.”</p>
+</div>
+
+<div class="card quick span3" onclick="showPage('workflow')">
+  <div class="qicon">⌘</div>
+  <h3>Workflow Builder</h3>
+  <p>Build reusable file-processing pipelines.</p>
+</div>
+
+<div class="card quick span3" onclick="showPage('codec')">
+  <div class="qicon">◈</div>
+  <h3>Codec Engine</h3>
+  <p>Real FFmpeg-powered media processing.</p>
+</div>
+
+<div class="card quick span3" onclick="showPage('security')">
+  <div class="qicon">⌁</div>
+  <h3>Security Lab</h3>
+  <p>Hash, encrypt and inspect files locally.</p>
+</div>
+
+<div class="card span8">
+  <h3>⚡ Recent Activity</h3>
+  <div id="homeHistory"></div>
+</div>
+
+<div class="card span4">
+  <h3>🧠 Engine Capabilities</h3>
+  <p>✓ Image conversion</p>
+  <p>✓ SHA hashing</p>
+  <p>✓ AES-GCM encryption</p>
+  <p>✓ ZIP creation</p>
+  <p>✓ PDF generation</p>
+  <p>✓ FFmpeg media routes</p>
+  <p>✓ Batch processing</p>
+  <p>✓ Natural-language routing</p>
+</div>
+```
+
+  </div>
+</div>
+
+<!-- FORMAT -->
+
+<div class="page" id="page-format">
+  <div class="pageHead">
+    <div>
+      <h1>FORMAT MASTER</h1>
+      <p>Universal file utilities and browser-native conversions.</p>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="format-info">File Info</button>
+    <button class="tab" data-tab="format-image">Image Converter</button>
+    <button class="tab" data-tab="format-text">Text Lab</button>
+    <button class="tab" data-tab="format-json">JSON</button>
+    <button class="tab" data-tab="format-zip">ZIP Creator</button>
+    <button class="tab" data-tab="format-units">Units</button>
+  </div>
+
+  <div class="toolPanel active" id="format-info">
+    <div class="card">
+      <h3>Universal File Inspector</h3>
+      <input type="file" id="formatInfoInput">
+      <div id="formatInfoResult" style="margin-top:15px"></div>
+    </div>
+  </div>
+
+  <div class="toolPanel" id="format-image">
+    <div class="grid">
+      <div class="card span4">
+        <h3>Image Converter</h3>
+        <input type="file" id="imageInput" accept="image/*">
+        <div style="height:10px"></div>
+        <label>Output</label>
+        <select id="imageFormat">
+          <option value="image/png">PNG</option>
+          <option value="image/jpeg">JPG</option>
+          <option value="image/webp">WebP</option>
+        </select>
+        <div style="height:10px"></div>
+        <label>Width — 0 = original</label>
+        <input type="number" id="imageWidth" value="0">
+        <div style="height:10px"></div>
+        <label>Quality</label>
+        <input type="range" id="imageQuality" min=".1" max="1" step=".05" value=".9">
+        <div style="height:12px"></div>
+        <button class="btn primary" onclick="convertImage()">Convert Image</button>
+      </div>
+
+```
+  <div class="card span8">
+    <h3>Preview</h3>
+    <img id="imagePreview" class="preview" style="display:none">
+    <div id="imageResult" class="empty">Choose an image.</div>
+  </div>
+</div>
+```
+
+  </div>
+
+  <div class="toolPanel" id="format-text">
+    <div class="card">
+      <h3>Text Transformer</h3>
+      <textarea id="textLabInput" placeholder="Enter text..."></textarea>
+      <div class="actions" style="margin-top:10px">
+        <button class="btn" onclick="textTransform('upper')">UPPER</button>
+        <button class="btn" onclick="textTransform('lower')">lower</button>
+        <button class="btn" onclick="textTransform('title')">Title Case</button>
+        <button class="btn" onclick="textTransform('reverse')">Reverse</button>
+        <button class="btn" onclick="textTransform('b64e')">Base64 Encode</button>
+        <button class="btn" onclick="textTransform('b64d')">Base64 Decode</button>
+        <button class="btn" onclick="textTransform('urlE')">URL Encode</button>
+        <button class="btn" onclick="textTransform('urlD')">URL Decode</button>
+      </div>
+      <textarea id="textLabOutput" style="margin-top:12px"></textarea>
+      <div id="textStats" style="margin-top:10px;color:var(--muted)"></div>
+    </div>
+  </div>
+
+  <div class="toolPanel" id="format-json">
+    <div class="card">
+      <h3>JSON Studio</h3>
+      <textarea id="jsonInput" placeholder='{"hello":"world"}'></textarea>
+      <div class="actions" style="margin-top:10px">
+        <button class="btn primary" onclick="formatJSON(true)">Format</button>
+        <button class="btn" onclick="formatJSON(false)">Minify</button>
+        <button class="btn" onclick="validateJSON()">Validate</button>
+      </div>
+      <textarea id="jsonOutput" style="margin-top:12px"></textarea>
+    </div>
+  </div>
+
+  <div class="toolPanel" id="format-zip">
+    <div class="card">
+      <h3>ZIP Creator</h3>
+      <input type="file" id="zipInput" multiple>
+      <div style="height:12px"></div>
+      <input id="zipName" value="AD_ENGINE_ARCHIVE.zip">
+      <div style="height:12px"></div>
+      <button class="btn primary" onclick="createZIP()">Create ZIP</button>
+    </div>
+  </div>
+
+  <div class="toolPanel" id="format-units">
+    <div class="card">
+      <h3>Universal Unit Converter</h3>
+      <div class="row">
+        <div>
+          <label>Category</label>
+          <select id="unitCategory">
+            <option value="length">Length</option>
+            <option value="mass">Mass</option>
+            <option value="speed">Speed</option>
+            <option value="data">Data</option>
+            <option value="area">Area</option>
+            <option value="volume">Volume</option>
+            <option value="time">Time</option>
+          </select>
+        </div>
+        <div>
+          <label>Value</label>
+          <input type="number" id="unitValue" value="1">
+        </div>
+        <div>
+          <label>From</label>
+          <select id="unitFrom"></select>
+        </div>
+        <div>
+          <label>To</label>
+          <select id="unitTo"></select>
+        </div>
+      </div>
+      <div style="margin-top:15px;font-size:24px;color:var(--accent)" id="unitResult">—</div>
+    </div>
+  </div>
+</div>
+
+<!-- MEDIA -->
+
+<div class="page" id="page-media">
+  <div class="pageHead">
+    <div>
+      <h1>MEDIA LAB</h1>
+      <p>Browser-native video and image processing.</p>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card span7">
+      <h3>🎬 Video Studio</h3>
+      <input type="file" id="mediaVideoInput" accept="video/*">
+      <video id="mediaVideo" class="preview" controls style="margin-top:12px;display:none"></video>
+
+```
+  <div class="row" style="margin-top:12px">
+    <div>
+      <label>Start seconds</label>
+      <input type="number" id="mediaStart" value="0" step=".1">
+    </div>
+    <div>
+      <label>End seconds</label>
+      <input type="number" id="mediaEnd" value="0" step=".1">
+    </div>
+    <div>
+      <label>Speed</label>
+      <select id="mediaSpeed">
+        <option>.25</option><option>.5</option><option selected>1</option>
+        <option>1.5</option><option>2</option><option>3</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="row" style="margin-top:12px">
+    <div>
+      <label>Brightness</label>
+      <input type="range" id="mediaBrightness" min="50" max="150" value="100">
+    </div>
+    <div>
+      <label>Contrast</label>
+      <input type="range" id="mediaContrast" min="50" max="150" value="100">
+    </div>
+    <div>
+      <label>Saturation</label>
+      <input type="range" id="mediaSaturation" min="0" max="200" value="100">
+    </div>
+  </div>
+
+  <div class="actions" style="margin-top:12px">
+    <button class="btn" onclick="setMediaStart()">Set Start</button>
+    <button class="btn" onclick="setMediaEnd()">Set End</button>
+    <button class="btn primary" onclick="exportBrowserWebM()">Export WebM</button>
+  </div>
+
+  <div class="progress" style="margin-top:12px"><div id="mediaProgress"></div></div>
+</div>
+
+<div class="card span5">
+  <h3>🖼 Image Lab</h3>
+  <input type="file" id="mediaImageInput" accept="image/*">
+  <canvas id="mediaCanvas" style="width:100%;margin-top:12px;background:#020304;border-radius:12px"></canvas>
+  <div class="row" style="margin-top:12px">
+    <div>
+      <label>Width</label>
+      <input type="number" id="mediaImgWidth" value="0">
+    </div>
+    <div>
+      <label>Format</label>
+      <select id="mediaImgFormat">
+        <option value="image/png">PNG</option>
+        <option value="image/jpeg">JPG</option>
+        <option value="image/webp">WebP</option>
+      </select>
+    </div>
+  </div>
+  <button class="btn primary" style="margin-top:12px" onclick="processMediaImage()">Process</button>
+</div>
+```
+
+  </div>
+</div>
+
+<!-- DEVELOPER -->
+
+<div class="page" id="page-developer">
+  <div class="pageHead">
+    <div>
+      <h1>DEVELOPER LAB</h1>
+      <p>Encoding, hashing, JSON, regex and developer utilities.</p>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card span6">
+      <h3>Base64 / URL</h3>
+      <textarea id="devInput"></textarea>
+      <div class="actions" style="margin-top:9px">
+        <button class="btn" onclick="devBase64(true)">B64 Encode</button>
+        <button class="btn" onclick="devBase64(false)">B64 Decode</button>
+        <button class="btn" onclick="devURL(true)">URL Encode</button>
+        <button class="btn" onclick="devURL(false)">URL Decode</button>
+      </div>
+      <textarea id="devOutput" style="margin-top:9px"></textarea>
+    </div>
+
+```
+<div class="card span6">
+  <h3>Hash Lab</h3>
+  <textarea id="hashText" placeholder="Text to hash..."></textarea>
+  <div class="actions" style="margin-top:9px">
+    <button class="btn" onclick="hashText('SHA-1')">SHA-1</button>
+    <button class="btn" onclick="hashText('SHA-256')">SHA-256</button>
+    <button class="btn" onclick="hashText('SHA-384')">SHA-384</button>
+    <button class="btn" onclick="hashText('SHA-512')">SHA-512</button>
+  </div>
+  <textarea id="hashOutput" style="margin-top:9px"></textarea>
+</div>
+
+<div class="card span6">
+  <h3>Regex Lab</h3>
+  <input id="regexPattern" placeholder="Pattern e.g. \\b[A-Z]{2}\\d+\\b">
+  <div style="height:8px"></div>
+  <input id="regexFlags" value="g">
+  <div style="height:8px"></div>
+  <textarea id="regexText"></textarea>
+  <button class="btn primary" style="margin-top:9px" onclick="runRegex()">Run Regex</button>
+  <pre id="regexOutput" class="log" style="margin-top:9px"></pre>
+</div>
+
+<div class="card span6">
+  <h3>JSON → Table</h3>
+  <textarea id="devJSON"></textarea>
+  <button class="btn primary" style="margin-top:9px" onclick="jsonTable()">Build Table</button>
+  <div id="jsonTableResult" style="overflow:auto;margin-top:12px"></div>
+</div>
+```
+
+  </div>
+</div>
+
+<!-- DOCUMENT -->
+
+<div class="page" id="page-document">
+  <div class="pageHead">
+    <div>
+      <h1>DOCUMENT LAB</h1>
+      <p>PDF creation, image-to-PDF and document utilities.</p>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card span6">
+      <h3>Text → PDF</h3>
+      <input id="pdfTextName" value="AD_ENGINE_DOCUMENT.pdf">
+      <div style="height:8px"></div>
+      <textarea id="pdfTextInput"></textarea>
+      <button class="btn primary" style="margin-top:9px" onclick="textToPDF()">Create PDF</button>
+    </div>
+
+```
+<div class="card span6">
+  <h3>Images → PDF</h3>
+  <input type="file" id="imagesPDFInput" accept="image/*" multiple>
+  <button class="btn primary" style="margin-top:12px" onclick="imagesToPDF()">Create PDF</button>
+</div>
+
+<div class="card span6">
+  <h3>PDF Information</h3>
+  <input type="file" id="pdfInfoInput" accept=".pdf,application/pdf">
+  <div id="pdfInfoResult" style="margin-top:12px"></div>
+</div>
+
+<div class="card span6">
+  <h3>DOCX Builder</h3>
+  <textarea id="docxText" placeholder="Text for the DOCX document..."></textarea>
+  <button class="btn primary" style="margin-top:9px" onclick="createDOCX()">Create DOCX</button>
+</div>
+```
+
+  </div>
+</div>
+
+<!-- SECURITY -->
+
+<div class="page" id="page-security">
+  <div class="pageHead">
+    <div>
+      <h1>SECURITY LAB</h1>
+      <p>Local hashing and AES-GCM file encryption.</p>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card span6">
+      <h3>File Hash</h3>
+      <input type="file" id="securityHashInput">
+      <div style="height:10px"></div>
+      <select id="securityHashAlgo">
+        <option>SHA-256</option>
+        <option>SHA-384</option>
+        <option>SHA-512</option>
+      </select>
+      <button class="btn primary" style="margin-top:10px" onclick="hashSecurityFile()">Hash File</button>
+      <textarea id="securityHashOutput" style="margin-top:10px"></textarea>
+    </div>
+
+```
+<div class="card span6">
+  <h3>AES-GCM Encrypt</h3>
+  <input type="file" id="encryptInput">
+  <div style="height:10px"></div>
+  <input type="password" id="encryptPassword" placeholder="Password">
+  <button class="btn primary" style="margin-top:10px" onclick="encryptFile()">Encrypt → .adsecure</button>
+</div>
+
+<div class="card span6">
+  <h3>AES-GCM Decrypt</h3>
+  <input type="file" id="decryptInput" accept=".adsecure">
+  <div style="height:10px"></div>
+  <input type="password" id="decryptPassword" placeholder="Password">
+  <button class="btn primary" style="margin-top:10px" onclick="decryptFile()">Decrypt</button>
+</div>
+
+<div class="card span6">
+  <h3>Password Strength</h3>
+  <input type="password" id="passwordStrength">
+  <div class="progress" style="margin-top:15px"><div id="passwordBar"></div></div>
+  <div id="passwordText" style="margin-top:10px;color:var(--muted)"></div>
+</div>
+```
+
+  </div>
+</div>
+
+<!-- CODEC -->
+
+<div class="page" id="page-codec">
+  <div class="pageHead">
+    <div>
+      <h1>REAL CODEC ENGINE</h1>
+      <p>FFmpeg-powered media conversion inside the browser.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="fileDrop" id="codecDrop">
+      <input type="file" id="codecInput" style="display:none">
+      <button class="btn primary" onclick="document.getElementById('codecInput').click()">Choose Media File</button>
+      <div id="codecFileName" style="margin-top:10px">No file selected</div>
+    </div>
+
+```
+<div class="row" style="margin-top:15px">
+  <div>
+    <label>Operation</label>
+    <select id="codecOperation">
+      <option value="video-mp3">Video → MP3</option>
+      <option value="video-webm">Video → WebM</option>
+      <option value="video-mp4">Video → MP4</option>
+      <option value="video-gif">Video → GIF</option>
+      <option value="audio-mp3">Audio → MP3</option>
+      <option value="audio-wav">Audio → WAV</option>
+      <option value="audio-ogg">Audio → OGG</option>
+      <option value="extract-audio">Extract Audio</option>
+      <option value="compress-video">Compress Video</option>
+    </select>
+  </div>
+  <div>
+    <label>Output name</label>
+    <input id="codecOutputName" value="">
+  </div>
+</div>
+
+<div class="actions" style="margin-top:13px">
+  <button class="btn primary" onclick="runCodec()">▶ Run Codec</button>
+  <button class="btn danger" onclick="cancelCodec()">■ Cancel</button>
+</div>
+
+<div class="progress" style="margin-top:13px"><div id="codecProgress"></div></div>
+<pre id="codecLog" class="log" style="margin-top:12px"></pre>
+```
+
+  </div>
+</div>
+
+<!-- BATCH -->
+
+<div class="page" id="page-batch">
+  <div class="pageHead">
+    <div>
+      <h1>BATCH ENGINE</h1>
+      <p>Process many files through the same operation.</p>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card span4">
+      <h3>Batch Input</h3>
+      <input type="file" id="batchInput" multiple>
+      <div style="height:12px"></div>
+      <select id="batchOperation">
+        <option value="image-webp">Image → WebP</option>
+        <option value="image-jpg">Image → JPG</option>
+        <option value="image-png">Image → PNG</option>
+        <option value="hash">SHA-256</option>
+        <option value="codec-webm">Video → WebM</option>
+        <option value="codec-mp3">Media → MP3</option>
+      </select>
+      <button class="btn primary" style="margin-top:12px" onclick="startBatch()">Run Batch</button>
+    </div>
+
+```
+<div class="card span8">
+  <h3>Queue</h3>
+  <div id="batchQueue" class="fileList"></div>
+  <div class="progress" style="margin-top:10px"><div id="batchProgress"></div></div>
+  <pre id="batchLog" class="log" style="margin-top:10px"></pre>
+</div>
+```
+
+  </div>
+</div>
+
+<!-- WORKFLOW -->
+
+<div class="page" id="page-workflow">
+  <div class="pageHead">
+    <div>
+      <h1>WORKFLOW BUILDER 2.0</h1>
+      <p>Build reusable processing pipelines visually.</p>
+    </div>
+    <div class="actions">
+      <button class="btn" onclick="newWorkflow()">＋ New</button>
+      <button class="btn" onclick="saveCurrentWorkflow()">Save</button>
+      <button class="btn blue" onclick="runCurrentWorkflow()">▶ Run</button>
+      <button class="btn" onclick="openWorkflowLibrary()">Library</button>
+    </div>
+  </div>
+
+  <div class="workflowLayout">
+    <div class="palette">
+      <h3 style="margin-top:0">BLOCKS</h3>
+      <div class="paletteItem" draggable="true" data-node="input">📥 Input</div>
+      <div class="paletteItem" draggable="true" data-node="detect">✦ Detect</div>
+      <div class="paletteItem" draggable="true" data-node="image">🖼 Image Convert</div>
+      <div class="paletteItem" draggable="true" data-node="codec">◈ Media Convert</div>
+      <div class="paletteItem" draggable="true" data-node="pdf">▤ PDF</div>
+      <div class="paletteItem" draggable="true" data-node="text">T Text</div>
+      <div class="paletteItem" draggable="true" data-node="hash"># Hash</div>
+      <div class="paletteItem" draggable="true" data-node="security">⌁ Encrypt</div>
+      <div class="paletteItem" draggable="true" data-node="zip">▦ ZIP</div>
+      <div class="paletteItem" draggable="true" data-node="rename">✎ Rename</div>
+      <div class="paletteItem" draggable="true" data-node="save">💾 Save</div>
+      <div class="paletteItem" draggable="true" data-node="download">⬇ Download</div>
+    </div>
+
+```
+<div class="workflowCanvas" id="workflowCanvas">
+  <div style="text-align:center;color:var(--muted);padding:35px" id="workflowEmpty">
+    Drag blocks here or click a block to add it.
+  </div>
+</div>
+
+<div class="inspector">
+  <h3>WORKFLOW</h3>
+
+  <label>Name</label>
+  <input id="workflowName" value="New Workflow">
+
+  <div style="height:12px"></div>
+
+  <label>Description</label>
+  <textarea id="workflowDescription" style="min-height:80px"></textarea>
+
+  <hr style="border-color:rgba(255,255,255,.05);margin:16px 0">
+
+  <div id="nodeInspector">
+    <div class="empty">Select a node to configure it.</div>
+  </div>
+</div>
+```
+
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <h3>Workflow Output</h3>
+    <pre id="workflowLog" class="log"></pre>
+  </div>
+</div>
+
+<!-- AUTO DETECT -->
+
+<div class="page" id="page-autodetect">
+  <div class="pageHead">
+    <div>
+      <h1>UNIVERSAL AUTO-DETECT 2.0</h1>
+      <p>Describe the operation. AD ENGINE builds the route.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>✦ Command Interface</h3>
+    <textarea id="commandInput"
+      style="min-height:115px"
+      placeholder="Try:
+Convert these MP4 files to MP3
+Make these JPGs WebP
+Resize this image to 1080 pixels
+Hash this file with SHA256
+Encrypt this file
+Create a ZIP from these files
+Convert PDF to TXT"></textarea>
+
+```
+<div class="actions" style="margin-top:10px">
+  <button class="btn primary" onclick="analyzeCommand()">Analyze Command</button>
+  <button class="btn" onclick="clearCommand()">Clear</button>
+</div>
+```
+
+  </div>
+
+  <div class="grid" style="margin-top:14px">
+    <div class="card span8">
+      <h3>Command Interpretation</h3>
+      <div id="commandResult" class="empty">
+        Enter a command and choose Analyze.
+      </div>
+    </div>
+
+```
+<div class="card span4">
+  <h3>Example Commands</h3>
+  <div class="libraryCard" onclick="useCommand('convert these mp4 files to mp3')">
+    <strong>🎵 MP4 → MP3</strong><small>Extract audio from video.</small>
+  </div>
+  <div class="libraryCard" onclick="useCommand('make these jpg files webp')">
+    <strong>🖼 JPG → WebP</strong><small>Batch image conversion.</small>
+  </div>
+  <div class="libraryCard" onclick="useCommand('resize this image to 1080 pixels')">
+    <strong>📐 Resize</strong><small>Resize image output.</small>
+  </div>
+  <div class="libraryCard" onclick="useCommand('hash this file sha256')">
+    <strong># SHA-256</strong><small>Generate integrity hash.</small>
+  </div>
+  <div class="libraryCard" onclick="useCommand('encrypt this file')">
+    <strong>🔐 Encrypt</strong><small>Create an ADSECURE container.</small>
+  </div>
+</div>
+```
+
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <h3>Detected Workflow</h3>
+    <div id="detectedWorkflow"></div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <h3>Auto-Detect History</h3>
+    <div id="autoHistory"></div>
+  </div>
+</div>
+
+<!-- AUTOMATION -->
+
+<div class="page" id="page-automation">
+  <div class="pageHead">
+    <div>
+      <h1>AUTOMATION</h1>
+      <p>Reusable workflows and engine-level automation.</p>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card span6">
+      <h3>Saved Workflows</h3>
+      <div id="automationWorkflowList"></div>
+    </div>
+
+```
+<div class="card span6">
+  <h3>Quick Automation</h3>
+  <p>Use Auto-Detect to generate a workflow automatically, then save it here.</p>
+  <button class="btn primary" onclick="showPage('autodetect')">Open Auto-Detect</button>
+</div>
+```
+
+  </div>
+</div>
+
+<!-- FILE MANAGER -->
+
+<div class="page" id="page-files">
+  <div class="pageHead">
+    <div>
+      <h1>FILE MANAGER 2.0</h1>
+      <p>Local file workspace with folders, favorites, search and lab handoff.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="managerToolbar">
+      <input type="file" id="fileManagerInput" multiple style="display:none">
+      <button class="btn primary" onclick="document.getElementById('fileManagerInput').click()">＋ Import</button>
+      <button class="btn" onclick="createFolder()">＋ Folder</button>
+      <button class="btn" onclick="refreshFiles()">↻ Refresh</button>
+      <button class="btn" onclick="downloadSelected()">⬇ Download</button>
+      <button class="btn" onclick="zipSelected()">▦ ZIP</button>
+      <button class="btn" onclick="sendSelectedToFormat()">⇄ Format</button>
+      <button class="btn" onclick="sendSelectedToCodec()">◈ Codec</button>
+      <button class="btn" onclick="sendSelectedToSecurity()">⌁ Security</button>
+      <button class="btn danger" onclick="deleteSelected()">Delete</button>
+    </div>
+
+```
+<div class="row">
+  <input id="fileSearch" placeholder="Search files...">
+  <select id="fileTypeFilter">
+    <option value="">All types</option>
+    <option value="image">Images</option>
+    <option value="video">Video</option>
+    <option value="audio">Audio</option>
+    <option value="pdf">PDF</option>
+    <option value="text">Text</option>
+  </select>
+  <select id="fileSort">
+    <option value="name">Name</option>
+    <option value="size">Size</option>
+    <option value="date">Date</option>
+  </select>
+</div>
+
+<div id="fileManagerList" class="fileList" style="margin-top:12px"></div>
+```
+
+  </div>
+</div>
+
+<!-- STORAGE -->
+
+<div class="page" id="page-storage">
+  <div class="pageHead">
+    <div>
+      <h1>STORAGE</h1>
+      <p>IndexedDB local storage for AD ENGINE files.</p>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card stat"><span class="badge">FILES</span><div class="big" id="storageCount">0</div></div>
+    <div class="card stat"><span class="badge blue">SIZE</span><div class="big" id="storageSize">0 B</div></div>
+    <div class="card span12">
+      <button class="btn danger" onclick="clearStorage()">Clear Stored Files</button>
+      <div class="fileList" id="storageList" style="margin-top:12px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- HISTORY -->
+
+<div class="page" id="page-history">
+  <div class="pageHead">
+    <div>
+      <h1>HISTORY</h1>
+      <p>Everything AD ENGINE has processed in this browser.</p>
+    </div>
+    <button class="btn danger" onclick="clearHistory()">Clear History</button>
+  </div>
+  <div class="card">
+    <div id="historyList"></div>
+  </div>
+</div>
+
+<!-- SETTINGS -->
+
+<div class="page" id="page-settings">
+  <div class="pageHead">
+    <div>
+      <h1>SETTINGS 2.0</h1>
+      <p>Appearance, interface, performance, privacy and engine behavior.</p>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card span6">
+      <h3>🎨 Appearance</h3>
+
+```
+  <label>Accent</label>
+  <input type="color" id="settingAccent" value="#00ff9a">
+
+  <div style="height:12px"></div>
+
+  <label>Theme</label>
+  <select id="settingTheme">
+    <option value="dark">Dark</option>
+    <option value="black">AMOLED Black</option>
+  </select>
+
+  <div class="toggle">
+    <span>Scanlines</span>
+    <div class="switch on" id="toggleScan" onclick="toggleSetting('scan')"><i></i></div>
+  </div>
+
+  <div class="toggle">
+    <span>Glow</span>
+    <div class="switch on" id="toggleGlow" onclick="toggleSetting('glow')"><i></i></div>
+  </div>
+
+  <div class="toggle">
+    <span>Animations</span>
+    <div class="switch on" id="toggleAnim" onclick="toggleSetting('anim')"><i></i></div>
+  </div>
+</div>
+
+<div class="card span6">
+  <h3>🖥 Interface</h3>
+
+  <label>Sidebar Width</label>
+  <input type="range" id="settingSidebar" min="210" max="340" value="260">
+
+  <div style="height:12px"></div>
+
+  <label>Corner Radius</label>
+  <input type="range" id="settingRadius" min="5" max="28" value="18">
+
+  <div class="toggle">
+    <span>Compact mode</span>
+    <div class="switch" id="toggleCompact" onclick="toggleSetting('compact')"><i></i></div>
+  </div>
+</div>
+
+<div class="card span6">
+  <h3>⚡ Performance</h3>
+  <p>FFmpeg is loaded only when a codec operation requires it.</p>
+  <p>Batch media processing uses a single codec worker path to reduce browser memory pressure.</p>
+  <p>Large files are kept in IndexedDB rather than localStorage.</p>
+</div>
+
+<div class="card span6">
+  <h3>🔒 Privacy</h3>
+  <p>AD ENGINE does not upload ordinary files to a server by default.</p>
+  <p>Translation services, when used, may send text externally.</p>
+  <button class="btn danger" onclick="resetEngine()">Reset AD ENGINE</button>
+</div>
+```
+
+  </div>
+</div>
+
+</section>
+</main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="modal" id="workflowModal">
+  <div class="modalBox">
+    <div class="pageHead">
+      <div>
+        <h2 style="margin:0">WORKFLOW LIBRARY</h2>
+        <p>Load a ready-made workflow template.</p>
+      </div>
+      <button class="iconBtn" onclick="closeWorkflowLibrary()">×</button>
+    </div>
+    <div id="workflowLibrary"></div>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   AD ENGINE 15.0
+   PARTS 14 + 15
+   Universal Workflow + Auto-Detect
+   ========================================================= */
+
+const DB_NAME = "ADEngineDatabase";
+const DB_VERSION = 15;
+
+let db;
+let selectedFiles = new Set();
+let currentFolder = "root";
+let currentWorkflow = null;
+let selectedNodeId = null;
+let currentCommandPlan = null;
+let codecFFmpeg = null;
+let codecLoading = false;
+let codecCancelled = false;
+
+const pages = {
+  home:"page-home",
+  format:"page-format",
+  media:"page-media",
+  developer:"page-developer",
+  document:"page-document",
+  security:"page-security",
+  codec:"page-codec",
+  batch:"page-batch",
+  workflow:"page-workflow",
+  autodetect:"page-autodetect",
+  automation:"page-automation",
+  files:"page-files",
+  storage:"page-storage",
+  history:"page-history",
+  settings:"page-settings"
+};
+
+/* =========================
+   DATABASE
+   ========================= */
+
+function openDB(){
+  return new Promise((resolve,reject)=>{
+    const request=indexedDB.open(DB_NAME,DB_VERSION);
+
+    request.onupgradeneeded=e=>{
+      const d=e.target.result;
+
+      if(!d.objectStoreNames.contains("files")){
+        const s=d.createObjectStore("files",{keyPath:"id"});
+        s.createIndex("folderId","folderId");
+        s.createIndex("name","name");
+        s.createIndex("modified","modified");
+      }
+
+      if(!d.objectStoreNames.contains("folders")){
+        const s=d.createObjectStore("folders",{keyPath:"id"});
+        s.put({
+          id:"root",
+          name:"ROOT",
+          parentId:null,
+          created:Date.now()
+        });
+      }
+
+      if(!d.objectStoreNames.contains("settings")){
+        d.createObjectStore("settings",{keyPath:"key"});
+      }
+
+      if(!d.objectStoreNames.contains("history")){
+        d.createObjectStore("history",{keyPath:"id"});
+      }
+
+      if(!d.objectStoreNames.contains("workflows")){
+        d.createObjectStore("workflows",{keyPath:"id"});
+      }
+    };
+
+    request.onsuccess=e=>{
+      db=e.target.result;
+      resolve(db);
+    };
+
+    request.onerror=()=>reject(request.error);
+  });
+}
+
+function tx(store,mode="readonly"){
+  return db.transaction(store,mode).objectStore(store);
+}
+
+function dbPut(store,value){
+  return new Promise((resolve,reject)=>{
+    const r=tx(store,"readwrite").put(value);
+    r.onsuccess=()=>resolve(r.result);
+    r.onerror=()=>reject(r.error);
+  });
+}
+
+function dbGet(store,key){
+  return new Promise((resolve,reject)=>{
+    const r=tx(store).get(key);
+    r.onsuccess=()=>resolve(r.result);
+    r.onerror=()=>reject(r.error);
+  });
+}
+
+function dbAll(store){
+  return new Promise((resolve,reject)=>{
+    const r=tx(store).getAll();
+    r.onsuccess=()=>resolve(r.result||[]);
+    r.onerror=()=>reject(r.error);
+  });
+}
+
+function dbDelete(store,key){
+  return new Promise((resolve,reject)=>{
+    const r=tx(store,"readwrite").delete(key);
+    r.onsuccess=()=>resolve();
+    r.onerror=()=>reject(r.error);
+  });
+}
+
+function dbClear(store){
+  return new Promise((resolve,reject)=>{
+    const r=tx(store,"readwrite").clear();
+    r.onsuccess=()=>resolve();
+    r.onerror=()=>reject(r.error);
+  });
+}
+
+async function migrateOldFiles(){
+  const files=await dbAll("files");
+
+  for(const f of files){
+    if(!f.folderId){
+      f.folderId="root";
+      f.modified=f.modified||Date.now();
+      await dbPut("files",f);
+    }
+  }
+
+  const root=await dbGet("folders","root");
+
+  if(!root){
+    await dbPut("folders",{
+      id:"root",
+      name:"ROOT",
+      parentId:null,
+      created:Date.now()
+    });
+  }
+}
+
+/* =========================
+   UTILITIES
+   ========================= */
+
+function uid(prefix="id"){
+  return prefix+"_"+Date.now().toString(36)+"_"+Math.random().toString(36).slice(2,8);
+}
+
+function esc(v){
+  return String(v??"")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
+function bytes(n){
+  if(!n)return "0 B";
+  const u=["B","KB","MB","GB","TB"];
+  const i=Math.min(Math.floor(Math.log(n)/Math.log(1024)),u.length-1);
+  return (n/Math.pow(1024,i)).toFixed(i?2:0)+" "+u[i];
+}
+
+function ext(name){
+  const x=name.lastIndexOf(".");
+  return x>=0?name.slice(x+1).toLowerCase():"";
+}
+
+function baseName(name){
+  return name.includes(".")?name.slice(0,name.lastIndexOf(".")):name;
+}
+
+function downloadBlob(blob,name){
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=name;
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+}
+
+function toast(message){
+  const el=document.getElementById("toast");
+  el.textContent=message;
+  el.classList.add("show");
+  clearTimeout(toast.t);
+  toast.t=setTimeout(()=>el.classList.remove("show"),2600);
+}
+
+function logTo(id,msg){
+  const el=document.getElementById(id);
+  if(!el)return;
+  el.textContent += `[${new Date().toLocaleTimeString()}] ${msg}\n`;
+  el.scrollTop=el.scrollHeight;
+}
+
+function setProgress(id,value){
+  const el=document.getElementById(id);
+  if(el)el.style.width=Math.max(0,Math.min(100,value))+"%";
+}
+
+async function historyAdd(action,details="",status="OK"){
+  await dbPut("history",{
+    id:uid("hist"),
+    action,
+    details,
+    status,
+    time:Date.now()
+  });
+  await refreshDashboard();
+}
+
+async function getFiles(){
+  return dbAll("files");
+}
+
+async function saveStoredFile(file,folderId=currentFolder){
+  const record={
+    id:uid("file"),
+    name:file.name,
+    type:file.type||"application/octet-stream",
+    size:file.size,
+    blob:file instanceof Blob?file:new Blob([file]),
+    folderId,
+    created:Date.now(),
+    modified:Date.now(),
+    favorite:false,
+    trashed:false
+  };
+
+  await dbPut("files",record);
+  return record;
+}
+
+function iconFor(file){
+  const e=ext(file.name);
+
+  if(file.type?.startsWith("image/")||["jpg","jpeg","png","webp","gif","bmp","tiff"].includes(e))return"🖼";
+  if(file.type?.startsWith("video/")||["mp4","webm","mov","mkv","avi"].includes(e))return"🎬";
+  if(file.type?.startsWith("audio/")||["mp3","wav","ogg","m4a","flac"].includes(e))return"🎵";
+  if(e==="pdf")return"📕";
+  if(["zip","7z","tar","gz"].includes(e))return"📦";
+  if(["txt","md","json","xml","csv","html","css","js"].includes(e))return"📄";
+  return"📁";
+}
+
+/* =========================
+   NAVIGATION
+   ========================= */
+
+function showPage(key){
+  if(!pages[key])key="home";
+
+  Object.entries(pages).forEach(([name,id])=>{
+    document.getElementById(id)?.classList.toggle("active",name===key);
+  });
+
+  document.querySelectorAll(".navBtn").forEach(btn=>{
+    btn.classList.toggle("active",btn.dataset.page===key);
+  });
+
+  if(key==="files")refreshFiles();
+  if(key==="storage")refreshStorage();
+  if(key==="history")refreshHistory();
+  if(key==="automation")refreshAutomation();
+  if(key==="workflow")renderWorkflow();
+  if(key==="settings")loadSettings();
+
+  if(window.innerWidth<760){
+    document.getElementById("sidebar").classList.remove("mobileOpen");
+  }
+}
+
+document.querySelectorAll(".navBtn").forEach(btn=>{
+  btn.addEventListener("click",()=>showPage(btn.dataset.page));
+});
+
+document.getElementById("menuBtn").onclick=()=>{
+  const s=document.getElementById("sidebar");
+
+  if(window.innerWidth<760)s.classList.toggle("mobileOpen");
+  else s.classList.toggle("collapsed");
+};
+
+document.getElementById("globalSearch").addEventListener("keydown",e=>{
+  if(e.key==="Enter"){
+    const q=e.target.value.trim();
+
+    if(q){
+      showPage("autodetect");
+      document.getElementById("commandInput").value=q;
+      analyzeCommand();
+    }
+  }
+});
+
+document.addEventListener("keydown",e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){
+    e.preventDefault();
+    document.getElementById("globalSearch").focus();
+  }
+});
+
+/* =========================
+   FORMAT TABS
+   ========================= */
+
+document.querySelectorAll(".tab").forEach(tab=>{
+  tab.addEventListener("click",()=>{
+    const parent=tab.closest(".page");
+
+    parent.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+    parent.querySelectorAll(".toolPanel").forEach(p=>p.classList.remove("active"));
+
+    tab.classList.add("active");
+    document.getElementById(tab.dataset.tab)?.classList.add("active");
+  });
+});
+
+/* =========================
+   FORMAT
+   ========================= */
+
+document.getElementById("formatInfoInput").onchange=async e=>{
+  const f=e.target.files[0];
+  if(!f)return;
+
+  document.getElementById("formatInfoResult").innerHTML=`
+    <div class="grid">
+      <div class="card span3"><b>Name</b><p>${esc(f.name)}</p></div>
+      <div class="card span3"><b>Type</b><p>${esc(f.type||"unknown")}</p></div>
+      <div class="card span3"><b>Size</b><p>${bytes(f.size)}</p></div>
+      <div class="card span3"><b>Modified</b><p>${new Date(f.lastModified).toLocaleString()}</p></div>
+    </div>`;
+
+  await historyAdd("File inspection",f.name);
+};
+
+document.getElementById("imageInput").onchange=e=>{
+  const f=e.target.files[0];
+  if(!f)return;
+  const img=document.getElementById("imagePreview");
+  img.src=URL.createObjectURL(f);
+  img.style.display="block";
+};
+
+async function convertImage(){
+  const f=document.getElementById("imageInput").files[0];
+
+  if(!f){
+    toast("Choose an image first.");
+    return;
+  }
+
+  const img=new Image();
+  img.src=URL.createObjectURL(f);
+
+  await img.decode();
+
+  let w=Number(document.getElementById("imageWidth").value)||img.naturalWidth;
+  let h=Math.round(img.naturalHeight*(w/img.naturalWidth));
+
+  if(!Number(document.getElementById("imageWidth").value))h=img.naturalHeight;
+
+  const canvas=document.createElement("canvas");
+  canvas.width=w;
+  canvas.height=h;
+
+  const ctx=canvas.getContext("2d");
+
+  if(document.getElementById("imageFormat").value==="image/jpeg"){
+    ctx.fillStyle="#fff";
+    ctx.fillRect(0,0,w,h);
+  }
+
+  ctx.drawImage(img,0,0,w,h);
+
+  const mime=document.getElementById("imageFormat").value;
+  const quality=Number(document.getElementById("imageQuality").value);
+
+  canvas.toBlob(blob=>{
+    const name=baseName(f.name)+"."+(
+      mime==="image/png"?"png":
+      mime==="image/webp"?"webp":"jpg"
+    );
+
+    downloadBlob(blob,name);
+    toast("Image converted.");
+    historyAdd("Image conversion",`${f.name} → ${name}`);
+  },mime,quality);
+}
+
+function textTransform(type){
+  const input=document.getElementById("textLabInput").value;
+  let out=input;
+
+  try{
+    if(type==="upper")out=input.toUpperCase();
+    if(type==="lower")out=input.toLowerCase();
+    if(type==="title")out=input.toLowerCase().replace(/\b\w/g,c=>c.toUpperCase());
+    if(type==="reverse")out=[...input].reverse().join("");
+    if(type==="b64e")out=btoa(unescape(encodeURIComponent(input)));
+    if(type==="b64d")out=decodeURIComponent(escape(atob(input)));
+    if(type==="urlE")out=encodeURIComponent(input);
+    if(type==="urlD")out=decodeURIComponent(input);
+  }catch{
+    out="Invalid input.";
+  }
+
+  document.getElementById("textLabOutput").value=out;
+
+  const words=input.trim()?input.trim().split(/\s+/).length:0;
+  const lines=input?input.split(/\n/).length:0;
+
+  document.getElementById("textStats").textContent=
+    `Characters: ${input.length} • Words: ${words} • Lines: ${lines}`;
+}
+
+function formatJSON(pretty){
+  const input=document.getElementById("jsonInput").value;
+
+  try{
+    const obj=JSON.parse(input);
+    document.getElementById("jsonOutput").value=
+      pretty?JSON.stringify(obj,null,2):JSON.stringify(obj);
+  }catch(e){
+    document.getElementById("jsonOutput").value="Invalid JSON: "+e.message;
+  }
+}
+
+function validateJSON(){
+  try{
+    JSON.parse(document.getElementById("jsonInput").value);
+    document.getElementById("jsonOutput").value="✓ VALID JSON";
+  }catch(e){
+    document.getElementById("jsonOutput").value="✗ INVALID JSON\n"+e.message;
+  }
+}
+
+async function createZIP(){
+  const files=[...document.getElementById("zipInput").files];
+
+  if(!files.length){
+    toast("Choose files.");
+    return;
+  }
+
+  const zip=new JSZip();
+
+  for(const f of files)zip.file(f.name,f);
+
+  const blob=await zip.generateAsync({type:"blob"});
+  const name=document.getElementById("zipName").value||"archive.zip";
+
+  downloadBlob(blob,name);
+  await historyAdd("ZIP creation",`${files.length} files`);
+  toast("ZIP created.");
+}
+
+/* =========================
+   UNITS
+   ========================= */
+
+const unitData={
+  length:{
+    meter:1,kilometer:1000,centimeter:.01,millimeter:.001,
+    mile:1609.344,yard:.9144,foot:.3048,inch:.0254
+  },
+  mass:{
+    gram:1,kilogram:1000,milligram:.001,pound:453.59237,ounce:28.349523
+  },
+  speed:{
+    "m/s":1,"km/h":.2777777778,"mph":.44704,"knot":.514444
+  },
+  data:{
+    byte:1,kilobyte:1024,megabyte:1024**2,gigabyte:1024**3,
+    terabyte:1024**4
+  },
+  area:{
+    "m²":1,"km²":1e6,"cm²":1e-4,"ft²":.09290304,"acre":4046.8564224
+  },
+  volume:{
+    liter:1,"milliliter":.001,"m³":1000,"gallon":3.785411784
+  },
+  time:{
+    second:1,minute:60,hour:3600,day:86400
+  }
+};
+
+function updateUnitOptions(){
+  const cat=document.getElementById("unitCategory").value;
+  const units=Object.keys(unitData[cat]);
+
+  for(const id of ["unitFrom","unitTo"]){
+    const s=document.getElementById(id);
+    s.innerHTML=units.map(x=>`<option>${x}</option>`).join("");
+  }
+
+  if(units[1])document.getElementById("unitTo").value=units[1];
+
+  calculateUnit();
+}
+
+function calculateUnit(){
+  const cat=document.getElementById("unitCategory").value;
+  const v=Number(document.getElementById("unitValue").value)||0;
+  const from=document.getElementById("unitFrom").value;
+  const to=document.getElementById("unitTo").value;
+
+  if(cat==="temperature"){
+    return;
+  }
+
+  const result=v*unitData[cat][from]/unitData[cat][to];
+
+  document.getElementById("unitResult").textContent=
+    `${v} ${from} = ${result} ${to}`;
+}
+
+["unitCategory","unitValue","unitFrom","unitTo"].forEach(id=>{
+  document.getElementById(id).addEventListener("input",calculateUnit);
+  document.getElementById(id).addEventListener("change",()=>{
+    if(id==="unitCategory")updateUnitOptions();
+    else calculateUnit();
+  });
+});
+
+/* =========================
+   MEDIA LAB
+   ========================= */
+
+let mediaVideoURL=null;
+let mediaImage=null;
+
+document.getElementById("mediaVideoInput").onchange=e=>{
+  const f=e.target.files[0];
+  if(!f)return;
+
+  if(mediaVideoURL)URL.revokeObjectURL(mediaVideoURL);
+
+  mediaVideoURL=URL.createObjectURL(f);
+
+  const v=document.getElementById("mediaVideo");
+  v.src=mediaVideoURL;
+  v.style.display="block";
+
+  v.onloadedmetadata=()=>{
+    document.getElementById("mediaStart").value=0;
+    document.getElementById("mediaEnd").value=v.duration.toFixed(2);
+  };
+};
+
+document.getElementById("mediaVideo").ontimeupdate=e=>{
+  const v=e.target;
+
+  v.playbackRate=Number(document.getElementById("mediaSpeed").value);
+
+  v.style.filter=
+    `brightness(${document.getElementById("mediaBrightness").value}%)
+     contrast(${document.getElementById("mediaContrast").value}%)
+     saturate(${document.getElementById("mediaSaturation").value}%)`;
+};
+
+function setMediaStart(){
+  document.getElementById("mediaStart").value=
+    document.getElementById("mediaVideo").currentTime.toFixed(2);
+}
+
+function setMediaEnd(){
+  document.getElementById("mediaEnd").value=
+    document.getElementById("mediaVideo").currentTime.toFixed(2);
+}
+
+async function exportBrowserWebM(){
+  const v=document.getElementById("mediaVideo");
+
+  if(!v.src){
+    toast("Choose a video.");
+    return;
+  }
+
+  const start=Number(document.getElementById("mediaStart").value)||0;
+  const end=Number(document.getElementById("mediaEnd").value)||v.duration;
+
+  const canvas=document.createElement("canvas");
+  canvas.width=v.videoWidth||1280;
+  canvas.height=v.videoHeight||720;
+
+  const ctx=canvas.getContext("2d");
+
+  const videoStream=canvas.captureStream(30);
+
+  let audioTracks=[];
+
+  try{
+    const ac=new AudioContext();
+    const source=ac.createMediaElementSource(v);
+    const dest=ac.createMediaStreamDestination();
+
+    source.connect(dest);
+    source.connect(ac.destination);
+
+    audioTracks=dest.stream.getAudioTracks();
+
+    await ac.resume();
+  }catch{
+    console.warn("Audio capture unavailable.");
+  }
+
+  audioTracks.forEach(t=>videoStream.addTrack(t));
+
+  const recorder=new MediaRecorder(
+    videoStream,
+    {mimeType:"video/webm;codecs=vp9,opus"}
+  );
+
+  const chunks=[];
+
+  recorder.ondataavailable=e=>{
+    if(e.data.size)chunks.push(e.data);
+  };
+
+  recorder.onstop=()=>{
+    const blob=new Blob(chunks,{type:"video/webm"});
+    downloadBlob(blob,"AD_ENGINE_video.webm");
+    setProgress("mediaProgress",100);
+    toast("WebM export complete.");
+  };
+
+  const draw=()=>{
+    if(recorder.state!=="recording")return;
+
+    if(v.currentTime>=end){
+      recorder.stop();
+      return;
+    }
+
+    ctx.filter=
+      `brightness(${document.getElementById("mediaBrightness").value}%)
+       contrast(${document.getElementById("mediaContrast").value}%)
+       saturate(${document.getElementById("mediaSaturation").value}%)`;
+
+    ctx.drawImage(v,0,0,canvas.width,canvas.height);
+
+    const p=((v.currentTime-start)/(end-start))*100;
+    setProgress("mediaProgress",p);
+
+    requestAnimationFrame(draw);
+  };
+
+  v.currentTime=start;
+
+  await new Promise(r=>v.onseeked=r);
+
+  recorder.start(200);
+  await v.play();
+  draw();
+}
+
+document.getElementById("mediaImageInput").onchange=e=>{
+  const f=e.target.files[0];
+  if(!f)return;
+
+  const img=new Image();
+  img.onload=()=>{
+    mediaImage=img;
+    drawMediaImage();
+  };
+  img.src=URL.createObjectURL(f);
+};
+
+function drawMediaImage(){
+  if(!mediaImage)return;
+
+  const canvas=document.getElementById("mediaCanvas");
+  canvas.width=mediaImage.naturalWidth;
+  canvas.height=mediaImage.naturalHeight;
+
+  canvas.getContext("2d").drawImage(mediaImage,0,0);
+}
+
+async function processMediaImage(){
+  if(!mediaImage){
+    toast("Choose an image.");
+    return;
+  }
+
+  const canvas=document.getElementById("mediaCanvas");
+  let w=Number(document.getElementById("mediaImgWidth").value)||mediaImage.naturalWidth;
+  let h=Math.round(mediaImage.naturalHeight*(w/mediaImage.naturalWidth));
+
+  canvas.width=w;
+  canvas.height=h;
+  canvas.getContext("2d").drawImage(mediaImage,0,0,w,h);
+
+  canvas.toBlob(blob=>{
+    const format=document.getElementById("mediaImgFormat").value;
+    const extension=format==="image/png"?"png":format==="image/webp"?"webp":"jpg";
+    downloadBlob(blob,`AD_ENGINE_image.${extension}`);
+  },document.getElementById("mediaImgFormat").value,.9);
+}
+
+/* =========================
+   DEVELOPER LAB
+   ========================= */
+
+function devBase64(encode){
+  try{
+    const input=document.getElementById("devInput").value;
+    document.getElementById("devOutput").value=encode
+      ?btoa(unescape(encodeURIComponent(input)))
+      :decodeURIComponent(escape(atob(input)));
+  }catch(e){
+    document.getElementById("devOutput").value="Invalid Base64";
+  }
+}
+
+function devURL(encode){
+  const input=document.getElementById("devInput").value;
+  document.getElementById("devOutput").value=
+    encode?encodeURIComponent(input):decodeURIComponent(input);
+}
+
+async function digestHex(algo,data){
+  const hash=await crypto.subtle.digest(algo,data);
+  return [...new Uint8Array(hash)]
+    .map(b=>b.toString(16).padStart(2,"0"))
+    .join("");
+}
+
+async function hashText(algo){
+  const data=new TextEncoder().encode(document.getElementById("hashText").value);
+  document.getElementById("hashOutput").value=
+    await digestHex(algo,data);
+}
+
+function runRegex(){
+  try{
+    const r=new RegExp(
+      document.getElementById("regexPattern").value,
+      document.getElementById("regexFlags").value
+    );
+
+    const text=document.getElementById("regexText").value;
+    const matches=text.match(r)||[];
+
+    document.getElementById("regexOutput").textContent=
+      JSON.stringify(matches,null,2);
+  }catch(e){
+    document.getElementById("regexOutput").textContent=e.message;
+  }
+}
+
+function jsonTable(){
+  try{
+    const data=JSON.parse(document.getElementById("devJSON").value);
+    const rows=Array.isArray(data)?data:[data];
+
+    if(!rows.length)return;
+
+    const keys=[...new Set(rows.flatMap(x=>Object.keys(x||{})))];
+
+    document.getElementById("jsonTableResult").innerHTML=`
+      <table class="table">
+        <thead><tr>${keys.map(k=>`<th>${esc(k)}</th>`).join("")}</tr></thead>
+        <tbody>
+          ${rows.map(row=>`
+            <tr>${keys.map(k=>`<td>${esc(row[k]??"")}</td>`).join("")}</tr>
+          `).join("")}
+        </tbody>
+      </table>`;
+  }catch(e){
+    document.getElementById("jsonTableResult").textContent=e.message;
+  }
+}
+
+/* =========================
+   DOCUMENT LAB
+   ========================= */
+
+async function textToPDF(){
+  const text=document.getElementById("pdfTextInput").value;
+  const name=document.getElementById("pdfTextName").value||"document.pdf";
+
+  const {jsPDF}=window.jspdf;
+  const pdf=new jsPDF();
+
+  const lines=pdf.splitTextToSize(text,180);
+
+  let y=15;
+
+  for(const line of lines){
+    if(y>280){
+      pdf.addPage();
+      y=15;
+    }
+
+    pdf.text(line,15,y);
+    y+=7;
+  }
+
+  pdf.save(name);
+
+  await historyAdd("Text to PDF",name);
+}
+
+async function imagesToPDF(){
+  const files=[...document.getElementById("imagesPDFInput").files];
+
+  if(!files.length){
+    toast("Choose images.");
+    return;
+  }
+
+  const {jsPDF}=window.jspdf;
+  let pdf=null;
+
+  for(const f of files){
+    const img=new Image();
+    img.src=URL.createObjectURL(f);
+
+    await img.decode();
+
+    const ratio=img.naturalWidth/img.naturalHeight;
+
+    let w=190;
+    let h=w/ratio;
+
+    if(h>275){
+      h=275;
+      w=h*ratio;
+    }
+
+    if(!pdf)pdf=new jsPDF({orientation:w>h?"landscape":"portrait"});
+    else pdf.addPage();
+
+    pdf.addImage(img,"JPEG",10,10,w,h);
+  }
+
+  pdf.save("AD_ENGINE_images.pdf");
+  await historyAdd("Images to PDF",`${files.length} images`);
+}
+
+document.getElementById("pdfInfoInput").onchange=async e=>{
+  const f=e.target.files[0];
+  if(!f)return;
+
+  const data=await f.arrayBuffer();
+
+  try{
+    const pdf=await PDFLib.PDFDocument.load(data);
+    document.getElementById("pdfInfoResult").innerHTML=`
+      <span class="badge green">VALID PDF</span>
+      <p>Pages: ${pdf.getPageCount()}</p>
+      <p>Size: ${bytes(f.size)}</p>`;
+  }catch(err){
+    document.getElementById("pdfInfoResult").textContent=
+      "Could not parse PDF: "+err.message;
+  }
+};
+
+async function createDOCX(){
+  const text=document.getElementById("docxText").value;
+
+  try{
+    const mod=window.docx||await import(
+      "https://cdn.jsdelivr.net/npm/docx@9.5.1/+esm"
+    );
+
+    const {
+      Document,
+      Packer,
+      Paragraph
+    }=mod;
+
+    const doc=new Document({
+      sections:[{
+        children:text.split(/\n/).map(line=>new Paragraph(line))
+      }]
+    });
+
+    const blob=await Packer.toBlob(doc);
+    downloadBlob(blob,"AD_ENGINE_document.docx");
+
+    toast("DOCX created.");
+  }catch(e){
+    toast("DOCX library could not load.");
+    console.error(e);
+  }
+}
+
+/* =========================
+   SECURITY
+   ========================= */
+
+async function hashSecurityFile(){
+  const f=document.getElementById("securityHashInput").files[0];
+
+  if(!f){
+    toast("Choose a file.");
+    return;
+  }
+
+  const algo=document.getElementById("securityHashAlgo").value;
+  const data=await f.arrayBuffer();
+
+  document.getElementById("securityHashOutput").value=
+    await digestHex(algo,data);
+
+  await historyAdd("File hash",`${f.name} ${algo}`);
+}
+
+async function deriveKey(password,salt){
+  const material=await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(password),
+    "PBKDF2",
+    false,
+    ["deriveKey"]
+  );
+
+  return crypto.subtle.deriveKey(
+    {
+      name:"PBKDF2",
+      salt,
+      iterations:250000,
+      hash:"SHA-256"
+    },
+    material,
+    {
+      name:"AES-GCM",
+      length:256
+    },
+    false,
+    ["encrypt","decrypt"]
+  );
+}
+
+async function encryptFile(){
+  const f=document.getElementById("encryptInput").files[0];
+  const password=document.getElementById("encryptPassword").value;
+
+  if(!f||!password){
+    toast("Choose a file and password.");
+    return;
+  }
+
+  const salt=crypto.getRandomValues(new Uint8Array(16));
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const key=await deriveKey(password,salt);
+
+  const data=await f.arrayBuffer();
+
+  const encrypted=await crypto.subtle.encrypt(
+    {name:"AES-GCM",iv},
+    key,
+    data
+  );
+
+  const header=new TextEncoder().encode("ADSEC1");
+  const nameBytes=new TextEncoder().encode(f.name);
+  const nameLen=new Uint8Array(2);
+
+  new DataView(nameLen.buffer).setUint16(0,nameBytes.length);
+
+  const output=new Blob([
+    header,
+    salt,
+    iv,
+    nameLen,
+    nameBytes,
+    encrypted
+  ],{type:"application/octet-stream"});
+
+  downloadBlob(output,f.name+".adsecure");
+
+  await historyAdd("File encryption",f.name);
+  toast("Encrypted.");
+}
+
+async function decryptFile(){
+  const f=document.getElementById("decryptInput").files[0];
+  const password=document.getElementById("decryptPassword").value;
+
+  if(!f||!password){
+    toast("Choose an .adsecure file and password.");
+    return;
+  }
+
+  try{
+    const data=new Uint8Array(await f.arrayBuffer());
+
+    const magic=new TextDecoder().decode(data.slice(0,6));
+
+    if(magic!=="ADSEC1")throw new Error("Invalid ADSECURE container.");
+
+    const salt=data.slice(6,22);
+    const iv=data.slice(22,34);
+
+    const nameLen=new DataView(
+      data.slice(34,36).buffer
+    ).getUint16(0);
+
+    const name=new TextDecoder().decode(
+      data.slice(36,36+nameLen)
+    );
+
+    const encrypted=data.slice(36+nameLen);
+
+    const key=await deriveKey(password,salt);
+
+    const plain=await crypto.subtle.decrypt(
+      {name:"AES-GCM",iv},
+      key,
+      encrypted
+    );
+
+    downloadBlob(
+      new Blob([plain]),
+      name||"decrypted_file"
+    );
+
+    toast("Decrypted.");
+    await historyAdd("File decryption",name);
+  }catch(e){
+    toast("Decryption failed.");
+  }
+}
+
+document.getElementById("passwordStrength").oninput=e=>{
+  const p=e.target.value;
+  let score=0;
+
+  if(p.length>=8)score++;
+  if(p.length>=12)score++;
+  if(/[A-Z]/.test(p))score++;
+  if(/[a-z]/.test(p))score++;
+  if(/\d/.test(p))score++;
+  if(/[^A-Za-z0-9]/.test(p))score++;
+
+  const pct=Math.min(100,score/6*100);
+
+  setProgress("passwordBar",pct);
+
+  document.getElementById("passwordText").textContent=
+    score<2?"Weak":
+    score<4?"Moderate":
+    score<6?"Strong":"Very strong";
+};
+
+/* =========================
+   FFMPEG CODEC ENGINE
+   ========================= */
+
+const FFMPEG_VERSION="0.12.15";
+const CORE_VERSION="0.12.10";
+const UTIL_VERSION="0.12.1";
+
+document.getElementById("codecInput").onchange=e=>{
+  const f=e.target.files[0];
+  if(!f)return;
+
+  document.getElementById("codecFileName").textContent=
+    `${f.name} • ${bytes(f.size)}`;
+
+  const op=document.getElementById("codecOperation").value;
+
+  document.getElementById("codecOutputName").value=
+    baseName(f.name)+"."+codecExtension(op);
+};
+
+function codecExtension(op){
+  return {
+    "video-mp3":"mp3",
+    "video-webm":"webm",
+    "video-mp4":"mp4",
+    "video-gif":"gif",
+    "audio-mp3":"mp3",
+    "audio-wav":"wav",
+    "audio-ogg":"ogg",
+    "extract-audio":"mp3",
+    "compress-video":"mp4"
+  }[op]||"bin";
+}
+
+async function loadFFmpeg(){
+  if(codecFFmpeg)return codecFFmpeg;
+  if(codecLoading){
+    while(codecLoading)await new Promise(r=>setTimeout(r,100));
+    return codecFFmpeg;
+  }
+
+  codecLoading=true;
+
+  try{
+    const {FFmpeg}=await import(
+      `https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@${FFMPEG_VERSION}/+esm`
+    );
+
+    const {toBlobURL}=await import(
+      `https://cdn.jsdelivr.net/npm/@ffmpeg/util@${UTIL_VERSION}/+esm`
+    );
+
+    const ff=new FFmpeg();
+
+    ff.on("log",({message})=>{
+      logTo("codecLog",message);
+    });
+
+    ff.on("progress",({progress})=>{
+      setProgress("codecProgress",progress*100);
+    });
+
+    const base=
+      `https://cdn.jsdelivr.net/npm/@ffmpeg/core@${CORE_VERSION}/dist/esm`;
+
+    await ff.load({
+      coreURL:await toBlobURL(
+        `${base}/ffmpeg-core.js`,
+        "text/javascript"
+      ),
+      wasmURL:await toBlobURL(
+        `${base}/ffmpeg-core.wasm`,
+        "application/wasm"
+      )
+    });
+
+    codecFFmpeg=ff;
+
+    logTo("codecLog","FFmpeg core loaded.");
+    return ff;
+  }finally{
+    codecLoading=false;
+  }
+}
+
+function codecArgs(op,input,output){
+  if(op==="video-mp3"){
+    return [
+      "-i",input,
+      "-vn",
+      "-codec:a","libmp3lame",
+      "-b:a","192k",
+      output
+    ];
+  }
+
+  if(op==="audio-mp3"){
+    return [
+      "-i",input,
+      "-codec:a","libmp3lame",
+      "-b:a","192k",
+      output
+    ];
+  }
+
+  if(op==="audio-wav"){
+    return ["-i",input,output];
+  }
+
+  if(op==="audio-ogg"){
+    return ["-i",input,"-c:a","libvorbis",output];
+  }
+
+  if(op==="video-webm"){
+    return [
+      "-i",input,
+      "-c:v","libvpx-vp9",
+      "-c:a","libopus",
+      output
+    ];
+  }
+
+  if(op==="video-mp4"){
+    return [
+      "-i",input,
+      "-c:v","libx264",
+      "-c:a","aac",
+      "-movflags","+faststart",
+      output
+    ];
+  }
+
+  if(op==="video-gif"){
+    return [
+      "-i",input,
+      "-vf","fps=12,scale=640:-1:flags=lanczos",
+      output
+    ];
+  }
+
+  if(op==="extract-audio"){
+    return [
+      "-i",input,
+      "-vn",
+      "-codec:a","libmp3lame",
+      "-b:a","192k",
+      output
+    ];
+  }
+
+  if(op==="compress-video"){
+    return [
+      "-i",input,
+      "-c:v","libx264",
+      "-crf","28",
+      "-preset","veryfast",
+      "-c:a","aac",
+      output
+    ];
+  }
+
+  return ["-i",input,output];
+}
+
+async function runCodecFile(file,operation,outputName){
+  const ff=await loadFFmpeg();
+
+  codecCancelled=false;
+
+  const inputName="input_"+Date.now()+"."+ext(file.name);
+  const output=outputName||(
+    baseName(file.name)+"."+codecExtension(operation)
+  );
+
+  await ff.writeFile(
+    inputName,
+    new Uint8Array(await file.arrayBuffer())
+  );
+
+  logTo("codecLog",`Running: ${operation}`);
+
+  const args=codecArgs(operation,inputName,output);
+
+  try{
+    await ff.exec(args);
+  }catch(e){
+    if(codecCancelled){
+      throw new Error("Codec operation cancelled.");
+    }
+    throw e;
+  }
+
+  if(codecCancelled){
+    throw new Error("Codec operation cancelled.");
+  }
+
+  const data=await ff.readFile(output);
+
+  const blob=new Blob([data.buffer]);
+
+  try{await ff.deleteFile(inputName)}catch{}
+  try{await ff.deleteFile(output)}catch{}
+
+  return {
+    blob,
+    name:output
+  };
+}
+
+async function runCodec(){
+  const f=document.getElementById("codecInput").files[0];
+
+  if(!f){
+    toast("Choose a media file.");
+    return;
+  }
+
+  const op=document.getElementById("codecOperation").value;
+  const name=document.getElementById("codecOutputName").value;
+
+  setProgress("codecProgress",0);
+  document.getElementById("codecLog").textContent="";
+
+  try{
+    const result=await runCodecFile(f,op,name);
+
+    downloadBlob(result.blob,result.name);
+
+    await historyAdd(
+      "Codec conversion",
+      `${f.name} → ${result.name}`
+    );
+
+    toast("Codec operation complete.");
+  }catch(e){
+    logTo("codecLog","ERROR: "+e.message);
+    toast("Codec operation failed.");
+  }
+}
+
+async function cancelCodec(){
+  codecCancelled=true;
+
+  if(codecFFmpeg){
+    try{
+      codecFFmpeg.terminate();
+    }catch{}
+    codecFFmpeg=null;
+    logTo("codecLog","FFmpeg terminated. It will reload for the next operation.");
+  }
+
+  toast("Codec cancellation requested.");
+}
+
+/* =========================
+   BATCH ENGINE
+   ========================= */
+
+let batchFiles=[];
+
+document.getElementById("batchInput").onchange=e=>{
+  batchFiles=[...e.target.files];
+  renderBatchQueue();
+};
+
+function renderBatchQueue(){
+  document.getElementById("batchQueue").innerHTML=
+    batchFiles.length
+    ?batchFiles.map((f,i)=>`
+      <div class="fileItem">
+        <div class="fileIcon">${iconFor(f)}</div>
+        <div class="fileName">
+          <strong>${esc(f.name)}</strong>
+          <small>${bytes(f.size)}</small>
+        </div>
+        <span class="badge">${i+1}</span>
+      </div>`).join("")
+    :`<div class="empty">No batch files.</div>`;
+}
+
+async function batchImage(file,type){
+  const img=new Image();
+  img.src=URL.createObjectURL(file);
+  await img.decode();
+
+  const canvas=document.createElement("canvas");
+  canvas.width=img.naturalWidth;
+  canvas.height=img.naturalHeight;
+
+  canvas.getContext("2d").drawImage(img,0,0);
+
+  const mime=
+    type==="image-webp"?"image/webp":
+    type==="image-jpg"?"image/jpeg":
+    "image/png";
+
+  const blob=await new Promise(r=>canvas.toBlob(r,mime,.9));
+
+  const extension=
+    type==="image-webp"?"webp":
+    type==="image-jpg"?"jpg":"png";
+
+  return {
+    blob,
+    name:baseName(file.name)+"."+extension
+  };
+}
+
+async function startBatch(){
+  if(!batchFiles.length){
+    toast("Choose batch files.");
+    return;
+  }
+
+  const operation=document.getElementById("batchOperation").value;
+
+  document.getElementById("batchLog").textContent="";
+  setProgress("batchProgress",0);
+
+  for(let i=0;i<batchFiles.length;i++){
+    const file=batchFiles[i];
+
+    try{
+      let result;
+
+      if(operation.startsWith("image-")){
+        result=await batchImage(file,operation);
+      }else if(operation==="hash"){
+        const data=await file.arrayBuffer();
+        const hash=await digestHex("SHA-256",data);
+
+        result={
+          blob:new Blob([hash],{type:"text/plain"}),
+          name:file.name+".sha256.txt"
+        };
+      }else{
+        const codecOp=
+          operation==="codec-mp3"?"audio-mp3":"video-webm";
+
+        result=await runCodecFile(
+          file,
+          codecOp,
+          baseName(file.name)+"."+(
+            codecOp==="audio-mp3"?"mp3":"webm"
+          )
+        );
+      }
+
+      downloadBlob(result.blob,result.name);
+
+      logTo(
+        "batchLog",
+        `✓ ${file.name} → ${result.name}`
+      );
+    }catch(e){
+      logTo(
+        "batchLog",
+        `✗ ${file.name}: ${e.message}`
+      );
+    }
+
+    setProgress(
+      "batchProgress",
+      ((i+1)/batchFiles.length)*100
+    );
+  }
+
+  await historyAdd(
+    "Batch operation",
+    `${batchFiles.length} files • ${operation}`
+  );
+
+  toast("Batch finished.");
+}
+
+/* =========================
+   WORKFLOW BUILDER
+   ========================= */
+
+const nodeTypes={
+  input:{
+    title:"Input",
+    icon:"📥",
+    desc:"Select or receive input files."
+  },
+  detect:{
+    title:"Detect",
+    icon:"✦",
+    desc:"Detect file type and metadata."
+  },
+  image:{
+    title:"Image Convert",
+    icon:"🖼",
+    desc:"Convert an image to PNG, JPG or WebP."
+  },
+  codec:{
+    title:"Media Convert",
+    icon:"◈",
+    desc:"Send media through FFmpeg."
+  },
+  pdf:{
+    title:"PDF",
+    icon:"▤",
+    desc:"PDF operations supported by AD ENGINE."
+  },
+  text:{
+    title:"Text",
+    icon:"T",
+    desc:"Transform text content."
+  },
+  hash:{
+    title:"Hash",
+    icon:"#",
+    desc:"Calculate SHA-256."
+  },
+  security:{
+    title:"Encrypt",
+    icon:"⌁",
+    desc:"Encrypt using AES-GCM."
+  },
+  zip:{
+    title:"ZIP",
+    icon:"▦",
+    desc:"Package files into ZIP."
+  },
+  rename:{
+    title:"Rename",
+    icon:"✎",
+    desc:"Change output filename."
+  },
+  save:{
+    title:"Save",
+    icon:"💾",
+    desc:"Save result to IndexedDB."
+  },
+  download:{
+    title:"Download",
+    icon:"⬇",
+    desc:"Download result."
+  }
+};
+
+function defaultNode(type){
+  const n={
+    id:uid("node"),
+    type,
+    config:{}
+  };
+
+  if(type==="image")n.config.format="webp";
+  if(type==="codec")n.config.operation="video-mp3";
+  if(type==="text")n.config.operation="upper";
+  if(type==="hash")n.config.algorithm="SHA-256";
+  if(type==="security")n.config.password="";
+  if(type==="rename")n.config.name="";
+  if(type==="pdf")n.config.operation="images-to-pdf";
+
+  return n;
+}
+
+function newWorkflow(){
+  currentWorkflow={
+    id:uid("workflow"),
+    name:"New Workflow",
+    description:"",
+    nodes:[],
+    created:Date.now(),
+    modified:Date.now(),
+    runs:0
+  };
+
+  selectedNodeId=null;
+
+  document.getElementById("workflowName").value=currentWorkflow.name;
+  document.getElementById("workflowDescription").value="";
+  renderWorkflow();
+
+  toast("New workflow created.");
+}
+
+function addWorkflowNode(type){
+  if(!currentWorkflow)newWorkflow();
+
+  currentWorkflow.nodes.push(defaultNode(type));
+  currentWorkflow.modified=Date.now();
+
+  selectedNodeId=currentWorkflow.nodes.at(-1).id;
+
+  renderWorkflow();
+}
+
+document.querySelectorAll(".paletteItem").forEach(item=>{
+  item.addEventListener("click",()=>{
+    addWorkflowNode(item.dataset.node);
+  });
+
+  item.addEventListener("dragstart",e=>{
+    e.dataTransfer.setData("text/plain",item.dataset.node);
+  });
+});
+
+document.getElementById("workflowCanvas").addEventListener("dragover",e=>{
+  e.preventDefault();
+});
+
+document.getElementById("workflowCanvas").addEventListener("drop",e=>{
+  e.preventDefault();
+  const type=e.dataTransfer.getData("text/plain");
+  if(type)addWorkflowNode(type);
+});
+
+function renderWorkflow(){
+  if(!currentWorkflow){
+    currentWorkflow={
+      id:uid("workflow"),
+      name:"New Workflow",
+      description:"",
+      nodes:[],
+      created:Date.now(),
+      modified:Date.now(),
+      runs:0
+    };
+  }
+
+  document.getElementById("workflowName").value=currentWorkflow.name;
+  document.getElementById("workflowDescription").value=currentWorkflow.description||"";
+
+  const canvas=document.getElementById("workflowCanvas");
+
+  if(!currentWorkflow.nodes.length){
+    canvas.innerHTML=`
+      <div style="text-align:center;color:var(--muted);padding:35px">
+        Drag blocks here or click a block to add it.
+      </div>`;
+    renderNodeInspector();
+    return;
+  }
+
+  canvas.innerHTML=currentWorkflow.nodes.map((node,i)=>{
+    const meta=nodeTypes[node.type];
+
+    return `
+      ${i?'<div class="connector"></div>':''}
+      <div class="node ${selectedNodeId===node.id?"selected":""}"
+           onclick="selectWorkflowNode('${node.id}')">
+        <div class="nodeTop">
+          <div class="nodeIcon">${meta.icon}</div>
+          <strong>${meta.title}</strong>
+          <span class="badge">${i+1}</span>
+          <button class="iconBtn" style="width:30px;height:30px"
+             onclick="event.stopPropagation();deleteWorkflowNode('${node.id}')">×</button>
+        </div>
+        <div class="nodeDesc">${meta.desc}</div>
+        <div style="margin-top:7px">
+          <span class="badge blue">${nodeSummary(node)}</span>
+        </div>
+      </div>`;
+  }).join("");
+
+  renderNodeInspector();
+}
+
+function nodeSummary(node){
+  if(node.type==="image")return (node.config.format||"webp").toUpperCase();
+  if(node.type==="codec")return (node.config.operation||"video-mp3").toUpperCase();
+  if(node.type==="text")return node.config.operation||"upper";
+  if(node.type==="hash")return node.config.algorithm||"SHA-256";
+  if(node.type==="rename")return node.config.name||"AUTO NAME";
+  if(node.type==="security")return"ENCRYPTED";
+  if(node.type==="pdf")return node.config.operation||"PDF";
+  return nodeTypes[node.type].title;
+}
+
+function selectWorkflowNode(id){
+  selectedNodeId=id;
+  renderWorkflow();
+}
+
+function deleteWorkflowNode(id){
+  currentWorkflow.nodes=currentWorkflow.nodes.filter(n=>n.id!==id);
+  selectedNodeId=null;
+  renderWorkflow();
+}
+
+function renderNodeInspector(){
+  const box=document.getElementById("nodeInspector");
+  const node=currentWorkflow?.nodes.find(n=>n.id===selectedNodeId);
+
+  if(!node){
+    box.innerHTML=`<div class="empty">Select a node to configure it.</div>`;
+    return;
+  }
+
+  let html=`
+    <span class="badge green">${nodeTypes[node.type].title}</span>
+    <h3 style="margin-top:9px">${nodeTypes[node.type].desc}</h3>`;
+
+  if(node.type==="image"){
+    html+=`
+      <label>Output Format</label>
+      <select onchange="updateNodeConfig('format',this.value)">
+        <option value="webp" ${node.config.format==="webp"?"selected":""}>WebP</option>
+        <option value="jpg" ${node.config.format==="jpg"?"selected":""}>JPG</option>
+        <option value="png" ${node.config.format==="png"?"selected":""}>PNG</option>
+      </select>`;
+  }
+
+  if(node.type==="codec"){
+    html+=`
+      <label>Codec Operation</label>
+      <select onchange="updateNodeConfig('operation',this.value)">
+        <option value="video-mp3">Video → MP3</option>
+        <option value="video-webm">Video → WebM</option>
+        <option value="video-mp4">Video → MP4</option>
+        <option value="video-gif">Video → GIF</option>
+        <option value="audio-mp3">Audio → MP3</option>
+        <option value="audio-wav">Audio → WAV</option>
+        <option value="audio-ogg">Audio → OGG</option>
+        <option value="extract-audio">Extract Audio</option>
+        <option value="compress-video">Compress Video</option>
+      </select>`;
+  }
+
+  if(node.type==="text"){
+    html+=`
+      <label>Operation</label>
+      <select onchange="updateNodeConfig('operation',this.value)">
+        <option value="upper">UPPERCASE</option>
+        <option value="lower">lowercase</option>
+        <option value="title">Title Case</option>
+        <option value="reverse">Reverse</option>
+      </select>`;
+  }
+
+  if(node.type==="hash"){
+    html+=`
+      <label>Algorithm</label>
+      <select onchange="updateNodeConfig('algorithm',this.value)">
+        <option>SHA-256</option>
+        <option>SHA-384</option>
+        <option>SHA-512</option>
+      </select>`;
+  }
+
+  if(node.type==="security"){
+    html+=`
+      <label>Password</label>
+      <input type="password"
+        value="${esc(node.config.password||"")}"
+        onchange="updateNodeConfig('password',this.value)"
+        placeholder="Workflow password">`;
+  }
+
+  if(node.type==="rename"){
+    html+=`
+      <label>Output Name</label>
+      <input value="${esc(node.config.name||"")}"
+        onchange="updateNodeConfig('name',this.value)"
+        placeholder="output.ext">`;
+  }
+
+  if(node.type==="pdf"){
+    html+=`
+      <label>PDF Operation</label>
+      <select onchange="updateNodeConfig('operation',this.value)">
+        <option value="images-to-pdf">Images → PDF</option>
+        <option value="text-to-pdf">Text → PDF</option>
+      </select>`;
+  }
+
+  box.innerHTML=html;
+
+  box.querySelectorAll("select").forEach(s=>{
+    const key=
+      node.type==="image"?"format":
+      node.type==="codec"?"operation":
+      node.type==="text"?"operation":
+      node.type==="hash"?"algorithm":
+      node.type==="pdf"?"operation":null;
+
+    if(key)s.value=node.config[key];
+  });
+}
+
+function updateNodeConfig(key,value){
+  const node=currentWorkflow.nodes.find(n=>n.id===selectedNodeId);
+  if(!node)return;
+
+  node.config[key]=value;
+  currentWorkflow.modified=Date.now();
+
+  renderWorkflow();
+}
+
+document.getElementById("workflowName").oninput=e=>{
+  if(currentWorkflow)currentWorkflow.name=e.target.value;
+};
+
+document.getElementById("workflowDescription").oninput=e=>{
+  if(currentWorkflow)currentWorkflow.description=e.target.value;
+};
+
+async function saveCurrentWorkflow(){
+  if(!currentWorkflow)return;
+
+  currentWorkflow.modified=Date.now();
+
+  await dbPut("workflows",currentWorkflow);
+
+  await historyAdd(
+    "Workflow saved",
+    currentWorkflow.name
+  );
+
+  refreshAutomation();
+
+  toast("Workflow saved.");
+}
+
+async function loadWorkflow(workflow){
+  currentWorkflow=JSON.parse(JSON.stringify(workflow));
+  selectedNodeId=null;
+  closeWorkflowLibrary();
+  showPage("workflow");
+  renderWorkflow();
+  toast("Workflow loaded.");
+}
+
+async function deleteWorkflow(id){
+  await dbDelete("workflows",id);
+  refreshAutomation();
+  openWorkflowLibrary();
+}
+
+const templates=[
+  {
+    name:"VIDEO → MP3",
+    description:"Turn a video into an MP3 file.",
+    nodes:["input","detect","codec","download"]
+  },
+  {
+    name:"IMAGE OPTIMIZER",
+    description:"Convert images to WebP and save them.",
+    nodes:["input","detect","image","save","download"]
+  },
+  {
+    name:"PHOTO → WEBP",
+    description:"Simple image conversion pipeline.",
+    nodes:["input","image","download"]
+  },
+  {
+    name:"PDF PACKAGER",
+    description:"Package image inputs into a PDF.",
+    nodes:["input","detect","pdf","download"]
+  },
+  {
+    name:"SECURE FILE",
+    description:"Encrypt an input file and save it.",
+    nodes:["input","security","save"]
+  },
+  {
+    name:"SCHOOL DOCUMENT",
+    description:"Text → PDF document workflow.",
+    nodes:["input","text","pdf","download"]
+  }
+];
+
+function workflowFromTemplate(t){
+  currentWorkflow={
+    id:uid("workflow"),
+    name:t.name,
+    description:t.description,
+    nodes:t.nodes.map(type=>defaultNode(type)),
+    created:Date.now(),
+    modified:Date.now(),
+    runs:0
+  };
+
+  selectedNodeId=null;
+  closeWorkflowLibrary();
+  showPage("workflow");
+  renderWorkflow();
+
+  toast(`${t.name} loaded.`);
+}
+
+async function openWorkflowLibrary(){
+  const saved=await dbAll("workflows");
+
+  document.getElementById("workflowLibrary").innerHTML=`
+    <h3>Built-in Templates</h3>
+    ${templates.map((t,i)=>`
+      <div class="libraryCard">
+        <strong>${esc(t.name)}</strong>
+        <small>${esc(t.description)}</small>
+        <div style="margin-top:8px">
+          <button class="btn primary" onclick="workflowFromTemplate(templates[${i}])">
+            Load
+          </button>
+        </div>
+      </div>`).join("")}
+
+    <h3 style="margin-top:22px">Saved Workflows</h3>
+    ${
+      saved.length
+      ?saved.map(w=>`
+        <div class="libraryCard">
+          <strong>${esc(w.name)}</strong>
+          <small>${esc(w.description||"No description")}</small>
+          <div style="margin-top:8px">
+            <button class="btn primary" onclick='loadWorkflow(${JSON.stringify(w).replaceAll("'","&#39;")})'>Load</button>
+            <button class="btn danger" onclick="deleteWorkflow('${w.id}')">Delete</button>
+          </div>
+        </div>`).join("")
+      :`<div class="empty">No saved workflows.</div>`
+    }`;
+
+  document.getElementById("workflowModal").classList.add("show");
+}
+
+function closeWorkflowLibrary(){
+  document.getElementById("workflowModal").classList.remove("show");
+}
+
+/* =========================
+   WORKFLOW RUNNER
+   ========================= */
+
+async function workflowImage(file,format){
+  const img=new Image();
+  img.src=URL.createObjectURL(file);
+  await img.decode();
+
+  const canvas=document.createElement("canvas");
+  canvas.width=img.naturalWidth;
+  canvas.height=img.naturalHeight;
+
+  canvas.getContext("2d").drawImage(img,0,0);
+
+  const mime=
+    format==="jpg"?"image/jpeg":
+    format==="png"?"image/png":
+    "image/webp";
+
+  const blob=await new Promise(r=>canvas.toBlob(r,mime,.9));
+
+  return {
+    blob,
+    name:baseName(file.name)+"."+format
+  };
+}
+
+async function workflowHash(item,algorithm){
+  const data=await item.blob.arrayBuffer();
+
+  return {
+    blob:new Blob([
+      await digestHex(algorithm,data)
+    ],{type:"text/plain"}),
+    name:item.name+".hash.txt"
+  };
+}
+
+async function workflowEncrypt(item,password){
+  if(!password)throw new Error("Encryption node requires a password.");
+
+  const salt=crypto.getRandomValues(new Uint8Array(16));
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const key=await deriveKey(password,salt);
+
+  const encrypted=await crypto.subtle.encrypt(
+    {name:"AES-GCM",iv},
+    key,
+    await item.blob.arrayBuffer()
+  );
+
+  const nameBytes=new TextEncoder().encode(item.name);
+  const len=new Uint8Array(2);
+
+  new DataView(len.buffer).setUint16(0,nameBytes.length);
+
+  return {
+    blob:new Blob([
+      new TextEncoder().encode("ADSEC1"),
+      salt,
+      iv,
+      len,
+      nameBytes,
+      encrypted
+    ]),
+    name:item.name+".adsecure"
+  };
+}
+
+async function runWorkflowOnFile(file){
+  let item={
+    blob:file,
+    name:file.name,
+    type:file.type
+  };
+
+  for(const node of currentWorkflow.nodes){
+    logTo(
+      "workflowLog",
+      `→ ${nodeTypes[node.type].title}: ${nodeSummary(node)}`
+    );
+
+    if(node.type==="input")continue;
+
+    if(node.type==="detect"){
+      item.detected={
+        extension:ext(item.name),
+        mime:item.blob.type||item.type,
+        size:item.blob.size
+      };
+      continue;
+    }
+
+    if(node.type==="image"){
+      item=await workflowImage(
+        item.blob,
+        node.config.format||"webp"
+      );
+      continue;
+    }
+
+    if(node.type==="codec"){
+      item=await runCodecFile(
+        new File([item.blob],item.name,{type:item.blob.type}),
+        node.config.operation||"video-mp3"
+      );
+      continue;
+    }
+
+    if(node.type==="hash"){
+      item=await workflowHash(
+        item,
+        node.config.algorithm||"SHA-256"
+      );
+      continue;
+    }
+
+    if(node.type==="security"){
+      item=await workflowEncrypt(
+        item,
+        node.config.password||""
+      );
+      continue;
+    }
+
+    if(node.type==="text"){
+      const text=await item.blob.text();
+      let out=text;
+
+      if(node.config.operation==="upper")out=text.toUpperCase();
+      if(node.config.operation==="lower")out=text.toLowerCase();
+      if(node.config.operation==="title"){
+        out=text.toLowerCase().replace(/\b\w/g,c=>c.toUpperCase());
+      }
+      if(node.config.operation==="reverse"){
+        out=[...text].reverse().join("");
+      }
+
+      item={
+        blob:new Blob([out],{type:"text/plain"}),
+        name:baseName(item.name)+".txt"
+      };
+
+      continue;
+    }
+
+    if(node.type==="rename"){
+      if(node.config.name)item.name=node.config.name;
+      continue;
+    }
+
+    if(node.type==="zip"){
+      const zip=new JSZip();
+      zip.file(item.name,item.blob);
+
+      item={
+        blob:await zip.generateAsync({type:"blob"}),
+        name:"AD_ENGINE_archive.zip"
+      };
+
+      continue;
+    }
+
+    if(node.type==="save"){
+      await saveStoredFile(
+        new File([item.blob],item.name,{type:item.blob.type})
+      );
+      continue;
+    }
+
+    if(node.type==="download"){
+      downloadBlob(item.blob,item.name);
+      continue;
+    }
+
+    if(node.type==="pdf"){
+      throw new Error(
+        "PDF workflow block currently requires a dedicated PDF input/output route."
+      );
+    }
+  }
+
+  return item;
+}
+
+async function runCurrentWorkflow(){
+  if(!currentWorkflow||!currentWorkflow.nodes.length){
+    toast("Add workflow blocks first.");
+    return;
+  }
+
+  const files=[...document.getElementById("batchInput").files];
+
+  let inputs=files;
+
+  if(!inputs.length){
+    const stored=await getFiles();
+    inputs=stored
+      .filter(f=>!f.trashed)
+      .slice(0,1)
+      .map(f=>new File([f.blob],f.name,{type:f.type}));
+  }
+
+  if(!inputs.length){
+    toast("Choose an input file in Batch Input or import one into File Manager.");
+    return;
+  }
+
+  document.getElementById("workflowLog").textContent="";
+
+  for(const file of inputs){
+    try{
+      await runWorkflowOnFile(file);
+      logTo("workflowLog",`✓ Complete: ${file.name}`);
+    }catch(e){
+      logTo("workflowLog",`✗ ${file.name}: ${e.message}`);
+    }
+  }
+
+  currentWorkflow.runs++;
+  currentWorkflow.modified=Date.now();
+
+  await historyAdd(
+    "Workflow run",
+    `${currentWorkflow.name} • ${inputs.length} input(s)`
+  );
+
+  toast("Workflow run complete.");
+}
+
+/* =========================
+   AUTO-DETECT 2.0
+   ========================= */
+
+function extractFormat(text){
+  const formats=[
+    "mp4","mp3","wav","ogg","m4a","flac",
+    "webm","avi","mov","mkv","gif",
+    "jpg","jpeg","png","webp","bmp","tiff",
+    "pdf","txt","docx","xlsx","csv",
+    "json","xml","zip","tar","gz"
+  ];
+
+  for(const f of formats){
+    if(new RegExp("\\b"+f+"\\b","i").test(text))return f;
+  }
+
+  return null;
+}
+
+function parseCommand(text){
+  const t=text.toLowerCase().trim();
+
+  const result={
+    raw:text,
+    supported:true,
+    confidence:"medium",
+    action:"unknown",
+    input:null,
+    output:null,
+    size:null,
+    nodes:[],
+    explanation:"",
+    warning:""
+  };
+
+  const targetMatch=
+    t.match(/\bto\s+([a-z0-9]+)\b/)||
+    t.match(/\binto\s+([a-z0-9]+)\b/)||
+    t.match(/\bas\s+([a-z0-9]+)\b/);
+
+  const target=targetMatch?targetMatch[1]:null;
+
+  result.input=extractFormat(t);
+  result.output=target;
+
+  const resize=
+    t.match(/(?:to|at|width)\s+(\d{3,5})\s*(?:px|pixels?)?/);
+
+  if(resize)result.size=Number(resize[1]);
+
+  if(/\b(encrypt|secure)\b/.test(t)){
+    result.action="encrypt";
+    result.nodes=["input","security","save"];
+    result.explanation="Encrypt the selected file with AES-GCM.";
+    result.confidence="high";
+    return result;
+  }
+
+  if(/\b(hash|checksum|sha-?256)\b/.test(t)){
+    result.action="hash";
+    result.nodes=["input","hash","download"];
+    result.explanation="Generate a SHA-256 integrity hash.";
+    result.confidence="high";
+    return result;
+  }
+
+  if(/\b(zip|archive)\b/.test(t)){
+    result.action="zip";
+    result.nodes=["input","zip","download"];
+    result.explanation="Package the selected files into a ZIP archive.";
+    result.confidence="high";
+    return result;
+  }
+
+  if(/\b(resize|scale)\b/.test(t)){
+    result.action="resize";
+    result.nodes=["input","image","download"];
+    result.explanation=
+      result.size
+      ?`Resize image output to approximately ${result.size}px wide.`
+      :"Resize image output.";
+    result.confidence=result.size?"high":"medium";
+    return result;
+  }
+
+  if(
+    /mp4.*mp3|video.*mp3|extract.*audio|audio.*from.*video/.test(t)
+  ){
+    result.action="video-to-mp3";
+    result.input=result.input||"video";
+    result.output="mp3";
+    result.nodes=["input","detect","codec","download"];
+    result.explanation="Extract audio from video using FFmpeg.";
+    result.confidence="high";
+    return result;
+  }
+
+  if(
+    /mp3.*wav|audio.*wav/.test(t)
+  ){
+    result.action="audio-to-wav";
+    result.input="audio";
+    result.output="wav";
+    result.nodes=["input","codec","download"];
+    result.explanation="Convert audio to WAV using FFmpeg.";
+    result.confidence="high";
+    return result;
+  }
+
+  if(
+    /jpg.*webp|jpeg.*webp|png.*webp|image.*webp/.test(t)
+  ){
+    result.action="image-to-webp";
+    result.input="image";
+    result.output="webp";
+    result.nodes=["input","detect","image","download"];
+    result.explanation="Convert images to WebP.";
+    result.confidence="high";
+    return result;
+  }
+
+  if(
+    /jpg.*png|jpeg.*png|webp.*png|image.*png/.test(t)
+  ){
+    result.action="image-to-png";
+    result.input="image";
+    result.output="png";
+    result.nodes=["input","image","download"];
+    result.explanation="Convert images to PNG.";
+    result.confidence="high";
+    return result;
+  }
+
+  if(
+    /jpg.*pdf|png.*pdf|image.*pdf|photo.*pdf|images.*pdf/.test(t)
+  ){
+    result.action="image-to-pdf";
+    result.input="image";
+    result.output="pdf";
+    result.nodes=["input","pdf","download"];
+    result.explanation="Create a PDF from image input.";
+    result.confidence="high";
+    result.warning=
+      "The PDF route is available as a dedicated Document Lab operation; automatic multi-image execution is not yet wired into the generic workflow runner.";
+    return result;
+  }
+
+  if(
+    /pdf.*txt|extract.*text.*pdf|pdf.*text/.test(t)
+  ){
+    result.action="pdf-to-text";
+    result.input="pdf";
+    result.output="txt";
+    result.nodes=["input","pdf","download"];
+    result.explanation="Extract text from a PDF.";
+    result.confidence="high";
+    result.warning=
+      "PDF text extraction is available in the document subsystem; this generic workflow route requires the PDF extractor.";
+    return result;
+  }
+
+  if(
+    /compress.*video|video.*compress/.test(t)
+  ){
+    result.action="compress-video";
+    result.input="video";
+    result.output="mp4";
+    result.nodes=["input","codec","download"];
+    result.explanation="Compress video using FFmpeg.";
+    result.confidence="high";
+    return result;
+  }
+
+  if(
+    /video.*webm|mp4.*webm|mov.*webm/.test(t)
+  ){
+    result.action="video-to-webm";
+    result.input="video";
+    result.output="webm";
+    result.nodes=["input","codec","download"];
+    result.explanation="Convert video to WebM.";
+    result.confidence="high";
+    return result;
+  }
+
+  if(
+    /video.*mp4|webm.*mp4|mov.*mp4|mkv.*mp4/.test(t)
+  ){
+    result.action="video-to-mp4";
+    result.input="video";
+    result.output="mp4";
+    result.nodes=["input","codec","download"];
+    result.explanation="Convert video to MP4 using FFmpeg.";
+    result.confidence="high";
+    return result;
+  }
+
+  result.supported=false;
+  result.action="unknown";
+  result.explanation=
+    "AD ENGINE could not confidently map this command to a supported route.";
+  result.warning=
+    "No conversion will be faked or performed until a real route is available.";
+
+  return result;
+}
+
+function buildWorkflowFromPlan(plan){
+  currentWorkflow={
+    id:uid("workflow"),
+    name:"AUTO: "+plan.action.toUpperCase(),
+    description:plan.explanation,
+    nodes:plan.nodes.map(type=>{
+      const node=defaultNode(type);
+
+      if(type==="codec"){
+        if(plan.action==="video-to-mp3")node.config.operation="video-mp3";
+        if(plan.action==="audio-to-wav")node.config.operation="audio-wav";
+        if(plan.action==="video-to-webm")node.config.operation="video-webm";
+        if(plan.action==="video-to-mp4")node.config.operation="video-mp4";
+        if(plan.action==="compress-video")node.config.operation="compress-video";
+      }
+
+      if(type==="image"){
+        if(plan.output)node.config.format=
+          plan.output==="jpeg"?"jpg":plan.output;
+      }
+
+      if(type==="hash")node.config.algorithm="SHA-256";
+
+      return node;
+    }),
+    created:Date.now(),
+    modified:Date.now(),
+    runs:0
+  };
+
+  if(plan.action==="encrypt"){
+    const node=currentWorkflow.nodes.find(n=>n.type==="security");
+    if(node)node.config.password="";
+  }
+
+  selectedNodeId=null;
+  renderWorkflow();
+}
+
+function renderCommandPlan(plan){
+  const result=document.getElementById("commandResult");
+
+  if(!plan.supported){
+    result.innerHTML=`
+      <span class="badge red">NO SAFE ROUTE FOUND</span>
+      <h3>${esc(plan.explanation)}</h3>
+      <p>${esc(plan.warning)}</p>`;
+  }else{
+    result.innerHTML=`
+      <span class="badge green">ROUTE DETECTED</span>
+      <h3>${esc(plan.action.toUpperCase())}</h3>
+      <p>${esc(plan.explanation)}</p>
+
+      <div class="commandPreview">
+        <strong>
+          ${esc(plan.input||"AUTO")}
+          <span class="commandArrow">→</span>
+          ${esc(plan.output||"ENGINE")}
+        </strong>
+
+        <div style="margin-top:10px">
+          ${plan.nodes.map((n,i)=>`
+            <span class="badge ${i===plan.nodes.length-1?"green":"blue"}">
+              ${i+1}. ${esc(nodeTypes[n]?.title||n)}
+            </span>
+          `).join(" → ")}
+        </div>
+
+        ${
+          plan.warning
+          ?`<p style="color:var(--warn)">⚠ ${esc(plan.warning)}</p>`
+          :""
+        }
+      </div>
+
+      <div class="actions" style="margin-top:12px">
+        <button class="btn primary" onclick="executeAutoPlan()">▶ Execute</button>
+        <button class="btn blue" onclick="addAutoPlanToWorkflow()">⌘ Open Workflow</button>
+        <button class="btn" onclick="saveAutoPlan()">Save Workflow</button>
+      </div>`;
+  }
+
+  const wf=document.getElementById("detectedWorkflow");
+
+  wf.innerHTML=plan.supported
+    ?plan.nodes.map((n,i)=>`
+      <div class="node">
+        <div class="nodeTop">
+          <div class="nodeIcon">${nodeTypes[n]?.icon||"?"}</div>
+          <strong>${i+1}. ${nodeTypes[n]?.title||n}</strong>
+        </div>
+        <div class="nodeDesc">${nodeTypes[n]?.desc||""}</div>
+      </div>
+      ${i<plan.nodes.length-1?'<div class="connector"></div>':''}
+    `).join("")
+    :`<div class="empty">No workflow generated.</div>`;
+}
+
+async function analyzeCommand(){
+  const text=document.getElementById("commandInput").value.trim();
+
+  if(!text){
+    toast("Enter a command.");
+    return;
+  }
+
+  currentCommandPlan=parseCommand(text);
+
+  renderCommandPlan(currentCommandPlan);
+
+  await dbPut("history",{
+    id:uid("auto"),
+    action:"Auto-Detect",
+    details:text,
+    status:currentCommandPlan.supported?"ROUTE":"NO ROUTE",
+    time:Date.now()
+  });
+
+  refreshAutoHistory();
+}
+
+function useCommand(text){
+  document.getElementById("commandInput").value=text;
+  analyzeCommand();
+}
+
+function clearCommand(){
+  document.getElementById("commandInput").value="";
+  document.getElementById("commandResult").innerHTML=
+    `<div class="empty">Enter a command and choose Analyze.</div>`;
+  document.getElementById("detectedWorkflow").innerHTML="";
+  currentCommandPlan=null;
+}
+
+function addAutoPlanToWorkflow(){
+  if(!currentCommandPlan?.supported)return;
+
+  buildWorkflowFromPlan(currentCommandPlan);
+  showPage("workflow");
+}
+
+async function saveAutoPlan(){
+  if(!currentCommandPlan?.supported)return;
+
+  buildWorkflowFromPlan(currentCommandPlan);
+  await saveCurrentWorkflow();
+}
+
+async function executeAutoPlan(){
+  if(!currentCommandPlan?.supported)return;
+
+  buildWorkflowFromPlan(currentCommandPlan);
+
+  showPage("workflow");
+
+  setTimeout(()=>runCurrentWorkflow(),100);
+}
+
+async function refreshAutoHistory(){
+  const all=await dbAll("history");
+
+  const rows=all
+    .filter(x=>x.action==="Auto-Detect")
+    .sort((a,b)=>b.time-a.time)
+    .slice(0,15);
+
+  document.getElementById("autoHistory").innerHTML=
+    rows.length
+    ?rows.map(x=>`
+      <div class="fileItem">
+        <div class="fileIcon">✦</div>
+        <div class="fileName">
+          <strong>${esc(x.details)}</strong>
+          <small>${new Date(x.time).toLocaleString()}</small>
+        </div>
+        <span class="badge ${x.status==="ROUTE"?"green":"red"}">${x.status}</span>
+      </div>`).join("")
+    :`<div class="empty">No Auto-Detect history.</div>`;
+}
+
+/* =========================
+   FILE MANAGER
+   ========================= */
+
+document.getElementById("fileManagerInput").onchange=async e=>{
+  for(const f of e.target.files){
+    await saveStoredFile(f);
+  }
+
+  e.target.value="";
+  refreshFiles();
+  refreshDashboard();
+  toast("Files imported.");
+};
+
+async function refreshFiles(){
+  const files=await getFiles();
+
+  const search=document.getElementById("fileSearch").value.toLowerCase();
+  const type=document.getElementById("fileTypeFilter").value;
+  const sort=document.getElementById("fileSort").value;
+
+  let filtered=files.filter(f=>{
+    if(f.trashed)return false;
+    if(f.folderId!==currentFolder)return false;
+
+    if(search&&!f.name.toLowerCase().includes(search))return false;
+
+    if(type){
+      if(type==="image"&&!f.type.startsWith("image/"))return false;
+      if(type==="video"&&!f.type.startsWith("video/"))return false;
+      if(type==="audio"&&!f.type.startsWith("audio/"))return false;
+      if(type==="pdf"&&ext(f.name)!=="pdf")return false;
+      if(type==="text"&&
+        !["txt","md","json","csv","xml","html","css","js"].includes(ext(f.name))
+      )return false;
+    }
+
+    return true;
+  });
+
+  filtered.sort((a,b)=>{
+    if(sort==="size")return b.size-a.size;
+    if(sort==="date")return b.modified-a.modified;
+    return a.name.localeCompare(b.name);
+  });
+
+  document.getElementById("fileManagerList").innerHTML=
+    filtered.length
+    ?filtered.map(f=>`
+      <div class="fileItem">
+        <input type="checkbox"
+          ${selectedFiles.has(f.id)?"checked":""}
+          onchange="toggleFileSelection('${f.id}',this.checked)">
+        <div class="fileIcon">${iconFor(f)}</div>
+        <div class="fileName">
+          <strong>${esc(f.name)}</strong>
+          <small>${bytes(f.size)} • ${new Date(f.modified).toLocaleDateString()}</small>
+        </div>
+        ${f.favorite?'<span class="badge green">★</span>':''}
+        <button class="btn" onclick="downloadStored('${f.id}')">↓</button>
+        <button class="btn danger" onclick="deleteStored('${f.id}')">×</button>
+      </div>`).join("")
+    :`<div class="empty">No files in this folder.</div>`;
+}
+
+function toggleFileSelection(id,checked){
+  if(checked)selectedFiles.add(id);
+  else selectedFiles.delete(id);
+}
+
+async function downloadStored(id){
+  const f=await dbGet("files",id);
+  if(!f)return;
+
+  downloadBlob(f.blob,f.name);
+}
+
+async function deleteStored(id){
+  await dbDelete("files",id);
+  selectedFiles.delete(id);
+  refreshFiles();
+  refreshDashboard();
+}
+
+async function deleteSelected(){
+  for(const id of selectedFiles){
+    await dbDelete("files",id);
+  }
+
+  selectedFiles.clear();
+  refreshFiles();
+  refreshDashboard();
+  toast("Selected files deleted.");
+}
+
+async function downloadSelected(){
+  for(const id of selectedFiles){
+    const f=await dbGet("files",id);
+    if(f)downloadBlob(f.blob,f.name);
+  }
+}
+
+async function zipSelected(){
+  const zip=new JSZip();
+  let count=0;
+
+  for(const id of selectedFiles){
+    const f=await dbGet("files",id);
+    if(f){
+      zip.file(f.name,f.blob);
+      count++;
+    }
+  }
+
+  if(!count){
+    toast("Select files first.");
+    return;
+  }
+
+  const blob=await zip.generateAsync({type:"blob"});
+  downloadBlob(blob,"AD_ENGINE_SELECTED.zip");
+
+  await historyAdd("File Manager ZIP",`${count} files`);
+}
+
+function sendSelectedToFormat(){
+  const first=[...selectedFiles][0];
+
+  if(!first){
+    toast("Select a file first.");
+    return;
+  }
+
+  dbGet("files",first).then(f=>{
+    if(!f)return;
+
+    const input=document.getElementById("imageInput");
+
+    if(f.type.startsWith("image/")){
+      const dt=new DataTransfer();
+      dt.items.add(new File([f.blob],f.name,{type:f.type}));
+      input.files=dt.files;
+      showPage("format");
+      toast("File handed to Format Master.");
+    }else{
+      showPage("format");
+      toast("Format Master opened. Use the appropriate tool for this file.");
+    }
+  });
+}
+
+async function sendSelectedToCodec(){
+  const first=[...selectedFiles][0];
+
+  if(!first){
+    toast("Select a file first.");
+    return;
+  }
+
+  const f=await dbGet("files",first);
+
+  if(!f)return;
+
+  const dt=new DataTransfer();
+
+  dt.items.add(
+    new File([f.blob],f.name,{type:f.type})
+  );
+
+  document.getElementById("codecInput").files=dt.files;
+  document.getElementById("codecInput").dispatchEvent(new Event("change"));
+
+  showPage("codec");
+  toast("File handed to Codec Engine.");
+}
+
+async function sendSelectedToSecurity(){
+  const first=[...selectedFiles][0];
+
+  if(!first){
+    toast("Select a file first.");
+    return;
+  }
+
+  const f=await dbGet("files",first);
+  const dt=new DataTransfer();
+
+  dt.items.add(
+    new File([f.blob],f.name,{type:f.type})
+  );
+
+  document.getElementById("securityHashInput").files=dt.files;
+
+  showPage("security");
+  toast("File handed to Security Lab.");
+}
+
+async function createFolder(){
+  const name=prompt("Folder name:");
+
+  if(!name)return;
+
+  await dbPut("folders",{
+    id:uid("folder"),
+    name,
+    parentId:currentFolder,
+    created:Date.now()
+  });
+
+  toast("Folder created.");
+}
+
+["fileSearch","fileTypeFilter","fileSort"].forEach(id=>{
+  document.getElementById(id).addEventListener("input",refreshFiles);
+  document.getElementById(id).addEventListener("change",refreshFiles);
+});
+
+/* =========================
+   STORAGE
+   ========================= */
+
+async function refreshStorage(){
+  const files=await getFiles();
+
+  const active=files.filter(f=>!f.trashed);
+
+  document.getElementById("storageCount").textContent=active.length;
+
+  document.getElementById("storageSize").textContent=
+    bytes(active.reduce((a,b)=>a+b.size,0));
+
+  document.getElementById("storageList").innerHTML=
+    active.length
+    ?active.map(f=>`
+      <div class="fileItem">
+        <div class="fileIcon">${iconFor(f)}</div>
+        <div class="fileName">
+          <strong>${esc(f.name)}</strong>
+          <small>${bytes(f.size)}</small>
+        </div>
+        <button class="btn" onclick="downloadStored('${f.id}')">Download</button>
+      </div>`).join("")
+    :`<div class="empty">Storage is empty.</div>`;
+}
+
+async function clearStorage(){
+  if(!confirm("Delete all stored files?"))return;
+
+  await dbClear("files");
+  selectedFiles.clear();
+
+  refreshStorage();
+  refreshFiles();
+  refreshDashboard();
+
+  toast("Stored files cleared.");
+}
+
+/* =========================
+   HISTORY
+   ========================= */
+
+async function refreshHistory(){
+  const rows=(await dbAll("history"))
+    .sort((a,b)=>b.time-a.time);
+
+  document.getElementById("historyList").innerHTML=
+    rows.length
+    ?rows.map(x=>`
+      <div class="fileItem">
+        <div class="fileIcon">◷</div>
+        <div class="fileName">
+          <strong>${esc(x.action)}</strong>
+          <small>${esc(x.details)} • ${new Date(x.time).toLocaleString()}</small>
+        </div>
+        <span class="badge ${x.status==="OK"||x.status==="ROUTE"?"green":"red"}">
+          ${esc(x.status)}
+        </span>
+      </div>`).join("")
+    :`<div class="empty">No history yet.</div>`;
+
+  refreshHomeHistory(rows);
+}
+
+async function refreshHomeHistory(rows){
+  rows=rows||await dbAll("history");
+
+  rows.sort((a,b)=>b.time-a.time);
+
+  const recent=rows.slice(0,6);
+
+  document.getElementById("homeHistory").innerHTML=
+    recent.length
+    ?recent.map(x=>`
+      <div class="fileItem">
+        <div class="fileIcon">◷</div>
+        <div class="fileName">
+          <strong>${esc(x.action)}</strong>
+          <small>${esc(x.details)}</small>
+        </div>
+        <small style="color:var(--muted)">
+          ${new Date(x.time).toLocaleTimeString()}
+        </small>
+      </div>`).join("")
+    :`<div class="empty">No recent activity.</div>`;
+}
+
+async function clearHistory(){
+  await dbClear("history");
+  refreshHistory();
+  refreshDashboard();
+  toast("History cleared.");
+}
+
+/* =========================
+   AUTOMATION
+   ========================= */
+
+async function refreshAutomation(){
+  const workflows=await dbAll("workflows");
+
+  document.getElementById("statWorkflows").textContent=workflows.length;
+
+  document.getElementById("automationWorkflowList").innerHTML=
+    workflows.length
+    ?workflows.map(w=>`
+      <div class="libraryCard">
+        <strong>${esc(w.name)}</strong>
+        <small>${esc(w.description||"No description")}</small>
+        <div style="margin-top:9px">
+          <button class="btn primary"
+            onclick='loadWorkflow(${JSON.stringify(w).replaceAll("'","&#39;")})'>
+            Open
+          </button>
+        </div>
+      </div>`).join("")
+    :`<div class="empty">No workflows saved.</div>`;
+}
+
+/* =========================
+   SETTINGS
+   ========================= */
+
+let settingsState={
+  accent:"#00ff9a",
+  theme:"dark",
+  scan:true,
+  glow:true,
+  anim:true,
+  compact:false,
+  sidebar:260,
+  radius:18
+};
+
+async function saveSettings(){
+  await dbPut("settings",{
+    key:"appearance",
+    value:settingsState
+  });
+}
+
+async function loadSettings(){
+  const saved=await dbGet("settings","appearance");
+
+  if(saved)settingsState={...settingsState,...saved.value};
+
+  applySettings();
+
+  document.getElementById("settingAccent").value=settingsState.accent;
+  document.getElementById("settingTheme").value=settingsState.theme;
+  document.getElementById("settingSidebar").value=settingsState.sidebar;
+  document.getElementById("settingRadius").value=settingsState.radius;
+
+  updateSwitch("toggleScan",settingsState.scan);
+  updateSwitch("toggleGlow",settingsState.glow);
+  updateSwitch("toggleAnim",settingsState.anim);
+  updateSwitch("toggleCompact",settingsState.compact);
+}
+
+function applySettings(){
+  document.documentElement.style.setProperty(
+    "--accent",settingsState.accent
+  );
+
+  document.documentElement.style.setProperty(
+    "--sidebar",
+    settingsState.sidebar+"px"
+  );
+
+  document.documentElement.style.setProperty(
+    "--radius",
+    settingsState.radius+"px"
+  );
+
+  document.documentElement.style.setProperty(
+    "--glow",
+    settingsState.glow?1:0
+  );
+
+  document.body.classList.toggle(
+    "scanlines",
+    settingsState.scan
+  );
+
+  document.body.style.background=
+    settingsState.theme==="black"
+    ?"radial-gradient(circle at 15% 10%,rgba(0,255,154,.04),transparent 30%),#000"
+    :"";
+}
+
+function updateSwitch(id,on){
+  document.getElementById(id)?.classList.toggle("on",on);
+}
+
+document.getElementById("settingAccent").oninput=e=>{
+  settingsState.accent=e.target.value;
+  applySettings();
+  saveSettings();
+};
+
+document.getElementById("settingTheme").onchange=e=>{
+  settingsState.theme=e.target.value;
+  applySettings();
+  saveSettings();
+};
+
+document.getElementById("settingSidebar").oninput=e=>{
+  settingsState.sidebar=Number(e.target.value);
+  applySettings();
+  saveSettings();
+};
+
+document.getElementById("settingRadius").oninput=e=>{
+  settingsState.radius=Number(e.target.value);
+  applySettings();
+  saveSettings();
+};
+
+function toggleSetting(type){
+  settingsState[type]=!settingsState[type];
+  applySettings();
+  updateSwitch(
+    type==="scan"?"toggleScan":
+    type==="glow"?"toggleGlow":
+    type==="anim"?"toggleAnim":"toggleCompact",
+    settingsState[type]
+  );
+  saveSettings();
+}
+
+async function resetEngine(){
+  if(!confirm(
+    "Reset AD ENGINE settings, workflows, history and stored files?"
+  ))return;
+
+  await dbClear("files");
+  await dbClear("folders");
+  await dbClear("settings");
+  await dbClear("history");
+  await dbClear("workflows");
+
+  location.reload();
+}
+
+/* =========================
+   DASHBOARD
+   ========================= */
+
+async function refreshDashboard(){
+  const files=await getFiles();
+  const workflows=await dbAll("workflows");
+  const history=await dbAll("history");
+
+  document.getElementById("statFiles").textContent=
+    files.filter(f=>!f.trashed).length;
+
+  document.getElementById("statWorkflows").textContent=
+    workflows.length;
+
+  document.getElementById("statHistory").textContent=
+    history.length;
+
+  refreshHomeHistory(history);
+}
+
+/* =========================
+   DRAG/DROP CODEC
+   ========================= */
+
+const codecDrop=document.getElementById("codecDrop");
+
+codecDrop.addEventListener("dragover",e=>{
+  e.preventDefault();
+  codecDrop.classList.add("drag");
+});
+
+codecDrop.addEventListener("dragleave",()=>{
+  codecDrop.classList.remove("drag");
+});
+
+codecDrop.addEventListener("drop",e=>{
+  e.preventDefault();
+  codecDrop.classList.remove("drag");
+
+  const f=e.dataTransfer.files[0];
+
+  if(!f)return;
+
+  const dt=new DataTransfer();
+  dt.items.add(f);
+
+  document.getElementById("codecInput").files=dt.files;
+  document.getElementById("codecInput").dispatchEvent(new Event("change"));
+});
+
+/* =========================
+   WORKFLOW KEYBOARD
+   ========================= */
+
+document.addEventListener("keydown",e=>{
+  if(
+    document.activeElement.tagName==="INPUT"||
+    document.activeElement.tagName==="TEXTAREA"
+  )return;
+
+  if(e.key==="Delete"&&selectedNodeId&&currentWorkflow){
+    deleteWorkflowNode(selectedNodeId);
+  }
+
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="s"){
+    if(document.getElementById("page-workflow").classList.contains("active")){
+      e.preventDefault();
+      saveCurrentWorkflow();
+    }
+  }
+});
+
+/* =========================
+   INITIALIZATION
+   ========================= */
+
+(async function init(){
+  try{
+    await openDB();
+    await migrateOldFiles();
+
+    await loadSettings();
+
+    updateUnitOptions();
+
+    newWorkflow();
+
+    await refreshDashboard();
+    await refreshFiles();
+    await refreshStorage();
+    await refreshHistory();
+    await refreshAutomation();
+    await refreshAutoHistory();
+
+    document.getElementById("engineStatus").textContent="READY";
+
+    toast("AD ENGINE 15.0 online.");
+  }catch(e){
+    console.error(e);
+    document.getElementById("engineStatus").textContent="DB ERROR";
+    toast("AD ENGINE database could not initialize.");
+  }
+})();
+</script>
+
+</body>
+</html>

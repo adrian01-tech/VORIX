@@ -1,0 +1,11 @@
+
+node_modules/
+dist/
+checkpoint-before-updater/
+.env
+.env.
+!.env.example
+*.log
+.DS_Store
+Thumbs.db
+VORIX Setup 1.0.0.exe
