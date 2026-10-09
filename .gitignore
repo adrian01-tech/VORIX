@@ -3,7 +3,7 @@ node_modules/
 dist/
 checkpoint-before-updater/
 .env
-.env.
+.env.*
 !.env.example
 *.log
 .DS_Store
